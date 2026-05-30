@@ -26,6 +26,7 @@
     </div>
     <div class="nav">
       <button class="active" data-view="dashboard">📊 Tổng quan</button>
+      <button data-view="assets">🏷️ Tài sản</button>
       <button data-view="tools">📦 Công cụ dụng cụ</button>
       <button data-view="departments">🏢 Bộ phận sử dụng</button>
       <button data-view="assignments">🔁 Cấp phát / Thu hồi</button>
@@ -82,7 +83,64 @@
         </div>
       </div>
     </section>
+<section class="view" id="assets">
+  <div class="card section">
+    <div class="section-title">
+      <h3>Danh sách tài sản</h3>
+      <small>quản lý tài sản cố định / tài sản kế toán</small>
+    </div>
 
+    <div class="toolbar">
+      <input class="field search" id="assetSearch" placeholder="Tìm mã, tên tài sản, serial, vị trí..." oninput="assetPage=1;renderAssets()">
+
+      <select class="field" id="filterAssetCategory" onchange="assetPage=1;renderAssets()">
+        <option value="">Tất cả nhóm tài sản</option>
+      </select>
+
+      <select class="field" id="filterAssetDept" onchange="assetPage=1;renderAssets()">
+        <option value="">Tất cả bộ phận</option>
+      </select>
+
+      <select class="field" id="filterAssetStatus" onchange="assetPage=1;renderAssets()">
+        <option value="">Tất cả trạng thái</option>
+      </select>
+
+      <button class="btn primary" onclick="openAssetModal()">+ Thêm tài sản</button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Mã TS</th>
+            <th>Nhóm</th>
+            <th>Tên tài sản</th>
+            <th>Serial</th>
+            <th>SL</th>
+            <th>Nguyên giá</th>
+            <th>Bộ phận</th>
+            <th>Người quản lý</th>
+            <th>Vị trí</th>
+            <th>Trạng thái</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+
+        <tbody id="assetRows"></tbody>
+      </table>
+    </div>
+
+    <div class="pager">
+      <div id="assetPagerInfo">0 dòng</div>
+
+      <div class="pager-actions">
+        <button class="btn ghost" onclick="prevAssetPage()">← Trước</button>
+        <span id="assetPagerPage">Trang 1/1</span>
+        <button class="btn ghost" onclick="nextAssetPage()">Sau →</button>
+      </div>
+    </div>
+  </div>
+</section>
     <section class="view" id="tools">
       <div class="card section">
         <div class="section-title"><h3>Danh sách công cụ, dụng cụ</h3><small>lọc nhanh và thao tác</small></div>
@@ -144,7 +202,100 @@
       </div>
     </section>
   </main>
+<div class="modal" id="assetModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <b id="assetModalTitle">Thêm tài sản</b>
+      <button class="btn ghost" onclick="closeModal('assetModal')">✕</button>
+    </div>
 
+    <div class="modal-body">
+      <div class="form-grid">
+
+        <div class="form-group">
+          <label>Mã tài sản</label>
+          <input id="faCode" placeholder="TS-0001">
+        </div>
+
+        <div class="form-group">
+          <label>Nhóm tài sản</label>
+          <select id="faCategory"></select>
+        </div>
+
+        <div class="form-group full">
+          <label>Tên tài sản</label>
+          <input id="faName" placeholder="Máy móc, thiết bị, nhà xưởng, phương tiện...">
+        </div>
+
+        <div class="form-group">
+          <label>Quy cách / model</label>
+          <input id="faSpec">
+        </div>
+
+        <div class="form-group">
+          <label>Serial</label>
+          <input id="faSerial">
+        </div>
+
+        <div class="form-group">
+          <label>Đơn vị tính</label>
+          <input id="faUnit" value="Cái">
+        </div>
+
+        <div class="form-group">
+          <label>Số lượng</label>
+          <input id="faQty" type="number" value="1">
+        </div>
+
+        <div class="form-group">
+          <label>Ngày mua / ghi tăng</label>
+          <input id="faPurchase" type="date">
+        </div>
+
+        <div class="form-group">
+          <label>Nguyên giá</label>
+          <input id="faCost" type="number" value="0">
+        </div>
+
+        <div class="form-group">
+          <label>Giá trị còn lại</label>
+          <input id="faRemain" type="number" value="0">
+        </div>
+
+        <div class="form-group">
+          <label>Bộ phận sử dụng</label>
+          <select id="faDept"></select>
+        </div>
+
+        <div class="form-group">
+          <label>Người quản lý</label>
+          <input id="faCustodian">
+        </div>
+
+        <div class="form-group">
+          <label>Vị trí</label>
+          <input id="faLocation">
+        </div>
+
+        <div class="form-group">
+          <label>Trạng thái</label>
+          <select id="faStatus"></select>
+        </div>
+
+        <div class="form-group full">
+          <label>Ghi chú</label>
+          <textarea id="faNote" rows="3"></textarea>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="modal-foot">
+      <button class="btn ghost" onclick="closeModal('assetModal')">Hủy</button>
+      <button class="btn primary" onclick="saveAsset()">Lưu tài sản</button>
+    </div>
+  </div>
+</div>
   <div class="modal" id="toolModal"><div class="modal-box">
     <div class="modal-head"><b id="toolModalTitle">Thêm CCDC</b><button class="btn ghost" onclick="closeModal('toolModal')">✕</button></div>
     <div class="modal-body"><div class="form-grid">
