@@ -1465,12 +1465,15 @@ async function importExcel(event){
         ], '')).trim()
       };
 
-      tools.unshift(payload);
-      codes.add(norm(code));
-      ok++;
-
       const saved = await saveRemote('/api/tools', payload, 'POST', false);
 
+if(saved){
+  tools.unshift(payload);
+  codes.add(norm(code));
+  ok++;
+}else{
+  fail++;
+}
 if(!saved){
   fail++;
   continue;
