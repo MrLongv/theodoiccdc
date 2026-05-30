@@ -1305,16 +1305,12 @@ function excelDateToISO(value){
 
 async function importExcel(event){
   const file = event.target.files[0];
-
   if(!file) return;
 
   try{
     showToast('Đang đọc file Excel...', 'info', 'Import');
 
-    const wb = XLSX.read(await file.arrayBuffer(), {
-      type:'array'
-    });
-
+    const wb = XLSX.read(await file.arrayBuffer(), { type:'array' });
     const sheet = wb.Sheets[wb.SheetNames[0]];
 
     const rows = XLSX.utils.sheet_to_json(sheet, {
@@ -1331,6 +1327,7 @@ async function importExcel(event){
     );
 
     for(const row of rows){
+
       const code = String(readCell(row, [
         'Mã CCDC',
         'Ma CCDC',
@@ -1369,8 +1366,6 @@ async function importExcel(event){
       ], '')).trim();
 
       const payload = {
-        id: Date.now() + Math.random(),
-
         tool_code: code,
 
         category: String(readCell(row, [
@@ -1467,22 +1462,20 @@ async function importExcel(event){
 
       const saved = await saveRemote('/api/tools', payload, 'POST', false);
 
-if(saved){
-  tools.unshift(payload);
-  codes.add(norm(code));
-  ok++;
-}else{
-  fail++;
-}
-if(!saved){
-  fail++;
-  continue;
-}
+      if(saved){
+        tools.unshift({
+          id: Date.now() + Math.random(),
+          ...payload
+        });
 
-    saveLocal();
+        codes.add(norm(code));
+        ok++;
+      }else{
+        fail++;
+      }
+    }
 
     await loadRemote();
-
     renderAll();
 
     showToast(
