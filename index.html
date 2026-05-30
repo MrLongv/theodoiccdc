@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Quản lý CCDC Kế toán - Việt Hồng</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="loginScreen" class="login-screen">
+    <div class="login-box">
+      <div class="logo login-logo">VH</div>
+      <h2>Đăng nhập quản trị</h2>
+      <p>Kiểm kê & theo dõi công cụ, dụng cụ kế toán</p>
+      <input id="loginUser" class="field" placeholder="Tài khoản">
+      <input id="loginPass" class="field" type="password" placeholder="Mật khẩu">
+      <button class="btn primary" onclick="loginAdmin()">Đăng nhập</button>
+    </div>
+  </div>
+
+  <div class="drawer-mask" id="drawerMask" onclick="toggleMenu(false)"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="logo">VH</div>
+      <div><h1>Quản lý CCDC</h1><p>CÔNG TY TNHH MAY XK VIỆT HỒNG</p></div>
+    </div>
+    <div class="nav">
+      <button class="active" data-view="dashboard">📊 Tổng quan</button>
+      <button data-view="tools">📦 Công cụ dụng cụ</button>
+      <button data-view="departments">🏢 Bộ phận sử dụng</button>
+      <button data-view="assignments">🔁 Cấp phát / Thu hồi</button>
+      <button data-view="inventories">✅ Kiểm kê</button>
+      <button data-view="reports">📄 Báo cáo</button>
+      <button data-view="settings">⚙️ Cấu hình API</button>
+    </div>
+    <div class="side-footer"><b>Kế toán Việt Hồng</b><br>Dữ liệu lưu trên D1</div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="top-left">
+        <button class="btn ghost mobile-menu" onclick="toggleMenu(true)">☰</button>
+        <h2 id="pageTitle">Tổng quan CCDC</h2>
+        <p id="pageSub">Theo dõi công cụ, dụng cụ, bộ phận sử dụng, cấp phát, thu hồi và kiểm kê định kỳ.</p>
+      </div>
+      <div class="top-actions">
+        <div class="pill" id="todayText"></div>
+        <button class="btn ghost" onclick="logoutAdmin()">Đăng xuất</button>
+        <button class="btn ghost" onclick="exportExcel()">⬇ Xuất Excel</button>
+        <label class="btn blue" for="excelImport">⬆ Import Excel</label>
+        <input type="file" id="excelImport" accept=".xlsx,.xls,.csv" hidden onchange="importExcel(event)">
+        <button class="btn primary" onclick="openToolModal()">+ Thêm CCDC</button>
+      </div>
+    </div>
+
+    <section class="view active" id="dashboard">
+      <div class="grid kpis">
+        <div class="card kpi"><div class="label">Tổng CCDC</div><div class="value" id="kpiTotal">0</div><div class="note">Toàn bộ công cụ, dụng cụ đang quản lý</div></div>
+        <div class="card kpi"><div class="label">Đang sử dụng</div><div class="value" id="kpiUse">0</div><div class="note">Đã cấp phát cho bộ phận/người dùng</div></div>
+        <div class="card kpi"><div class="label">Trong kho</div><div class="value" id="kpiStock">0</div><div class="note">Chưa cấp phát hoặc đã thu hồi</div></div>
+        <div class="card kpi"><div class="label">Chênh lệch kiểm kê</div><div class="value" id="kpiDiff">0</div><div class="note">Mất, hỏng, thiếu hoặc cần xử lý</div></div>
+      </div>
+
+      <div class="grid chart-grid">
+        <div class="card section"><div class="section-title"><h3>Biểu đồ theo nhóm CCDC</h3><small>Pie chart</small></div><canvas id="chartCategory"></canvas></div>
+        <div class="card section"><div class="section-title"><h3>CCDC theo bộ phận</h3><small>Bar chart</small></div><canvas id="chartDept"></canvas></div>
+        <div class="card section"><div class="section-title"><h3>Giá trị theo trạng thái</h3><small>Tổng nguyên giá</small></div><canvas id="chartValue"></canvas></div>
+      </div>
+
+      <div class="grid content">
+        <div class="card section">
+          <div class="section-title"><h3>CCDC mới cập nhật</h3><small id="toolCountText"></small></div>
+          <div class="toolbar">
+            <input class="field search" id="dashSearch" placeholder="Tìm mã, tên, bộ phận, người quản lý..." oninput="renderDashboardTable()">
+            <select class="field" id="dashStatus" onchange="renderDashboardTable()"><option value="">Tất cả trạng thái</option></select>
+          </div>
+          <div class="table-wrap"><table><thead><tr><th>Mã CCDC</th><th>Nhóm</th><th>Tên CCDC</th><th>Bộ phận</th><th>Người quản lý</th><th>SL</th><th>Trạng thái</th></tr></thead><tbody id="dashRows"></tbody></table></div>
+        </div>
+        <div class="card section">
+          <div class="section-title"><h3>Cảnh báo</h3><small>tự động</small></div>
+          <div id="warningStats" class="stat-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="tools">
+      <div class="card section">
+        <div class="section-title"><h3>Danh sách công cụ, dụng cụ</h3><small>lọc nhanh và thao tác</small></div>
+        <div class="toolbar">
+          <input class="field search" id="toolSearch" placeholder="Tìm mã, tên, serial, vị trí..." oninput="toolPage=1;renderTools()">
+          <select class="field" id="filterCategory" onchange="toolPage=1;renderTools()"><option value="">Tất cả nhóm</option></select>
+          <select class="field" id="filterDept" onchange="toolPage=1;renderTools()"><option value="">Tất cả bộ phận</option></select>
+          <select class="field" id="filterStatus" onchange="toolPage=1;renderTools()"><option value="">Tất cả trạng thái</option></select>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>Mã</th><th>Nhóm</th><th>Tên CCDC</th><th>ĐVT</th><th>SL</th><th>Nguyên giá</th><th>Bộ phận</th><th>Người quản lý</th><th>Vị trí</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody id="toolRows"></tbody></table></div>
+        <div class="pager"><div id="pagerInfo">0 dòng</div><div class="pager-actions"><button class="btn ghost" onclick="prevPage()">← Trước</button><span id="pagerPage">Trang 1/1</span><button class="btn ghost" onclick="nextPage()">Sau →</button><select class="field page-size" id="pageSize" onchange="changePageSize()"><option value="10">10 dòng</option><option value="25" selected>25 dòng</option><option value="50">50 dòng</option><option value="100">100 dòng</option></select></div></div>
+      </div>
+    </section>
+
+    <section class="view" id="departments">
+      <div class="grid dept-grid" id="deptGrid"></div>
+    </section>
+
+    <section class="view" id="assignments">
+      <div class="card section">
+        <div class="section-title"><h3>Lịch sử cấp phát / thu hồi / điều chuyển</h3><button class="btn blue" onclick="openAssignModal()">+ Tạo phiếu</button></div>
+        <div class="table-wrap"><table><thead><tr><th>Ngày</th><th>Mã CCDC</th><th>Loại phiếu</th><th>Người nhận/trả</th><th>Bộ phận</th><th>SL</th><th>Ghi chú</th><th>Thao tác</th></tr></thead><tbody id="assignRows"></tbody></table></div>
+      </div>
+    </section>
+
+    <section class="view" id="inventories">
+      <div class="card section">
+        <div class="section-title"><h3>Biên bản kiểm kê</h3><button class="btn blue" onclick="openInventoryModal()">+ Ghi nhận kiểm kê</button></div>
+        <div class="table-wrap"><table><thead><tr><th>Năm</th><th>Ngày kiểm kê</th><th>Mã CCDC</th><th>SL sổ sách</th><th>SL thực tế</th><th>Chênh lệch</th><th>Tình trạng</th><th>Kiến nghị xử lý</th><th>Thao tác</th></tr></thead><tbody id="inventoryRows"></tbody></table></div>
+      </div>
+    </section>
+
+    <section class="view" id="reports">
+      <div class="card section">
+        <div class="section-title"><h3>Báo cáo nhanh</h3><small>Tổng hợp dữ liệu từ D1</small></div>
+        <div class="grid dept-grid">
+          <div class="dept"><h4>CCDC theo bộ phận</h4><p>Kiểm kê số lượng từng phòng/xưởng.</p><button class="btn ghost" onclick="renderReportByDept()">Xem báo cáo</button></div>
+          <div class="dept"><h4>CCDC cần xử lý</h4><p>Lọc mất, hỏng, thanh lý, thiếu kiểm kê.</p><button class="btn ghost" onclick="showIssueTools()">Xem danh sách</button></div>
+          <div class="dept"><h4>Xuất kiểm kê Excel</h4><p>Xuất đầy đủ danh sách CCDC, cấp phát và kiểm kê.</p><button class="btn ghost" onclick="exportExcel()">Xuất Excel</button></div>
+        </div>
+        <div class="table-wrap" style="margin-top:16px"><table><thead><tr><th>Bộ phận</th><th>Tổng CCDC</th><th>Đang dùng</th><th>Trong kho</th><th>Hỏng/Mất/Thanh lý</th><th>Tổng nguyên giá</th></tr></thead><tbody id="reportDeptRows"><tr><td colspan="6">Bấm “Xem báo cáo” để tạo báo cáo.</td></tr></tbody></table></div>
+      </div>
+    </section>
+
+    <section class="view" id="settings">
+      <div class="card section">
+        <div class="section-title"><h3>Cấu hình Worker + D1</h3><small>Cloudflare Worker + D1</small></div>
+        <div class="hint">Đổi API_BASE bên dưới thành domain Worker của bạn. Nếu chưa có Worker, app vẫn có thể chạy bằng localStorage để test giao diện.</div>
+        <div class="form-grid">
+          <div class="form-group full"><label>API_BASE</label><input id="apiBaseInput" placeholder="https://ccdc-api.xxx.workers.dev"></div>
+          <div class="form-group full"><label>Endpoint đề xuất</label><textarea rows="7" readonly>/api/login
+/api/tools
+/api/assignments
+/api/inventories
+/api/import-excel
+/api/dashboard</textarea></div>
+        </div>
+        <div style="margin-top:14px"><button class="btn primary" onclick="saveApiBase()">Lưu cấu hình</button></div>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal" id="toolModal"><div class="modal-box">
+    <div class="modal-head"><b id="toolModalTitle">Thêm CCDC</b><button class="btn ghost" onclick="closeModal('toolModal')">✕</button></div>
+    <div class="modal-body"><div class="form-grid">
+      <div class="form-group"><label>Mã CCDC</label><input id="fCode" placeholder="VH-CCDC-0001"></div>
+      <div class="form-group"><label>Nhóm CCDC</label><select id="fCategory"></select></div>
+      <div class="form-group full"><label>Tên CCDC</label><input id="fName" placeholder="Bàn làm việc, ghế xoay, máy tính cầm tay..."></div>
+      <div class="form-group"><label>Quy cách / model</label><input id="fSpec" placeholder="Kích thước, model, mô tả ngắn"></div>
+      <div class="form-group"><label>Serial / Mã nhà cung cấp</label><input id="fSerial"></div>
+      <div class="form-group"><label>Đơn vị tính</label><input id="fUnit" value="Cái"></div>
+      <div class="form-group"><label>Số lượng</label><input id="fQty" type="number" value="1"></div>
+      <div class="form-group"><label>Ngày mua / ghi tăng</label><input id="fPurchase" type="date"></div>
+      <div class="form-group"><label>Nguyên giá</label><input id="fCost" type="number" value="0"></div>
+      <div class="form-group"><label>Giá trị còn lại</label><input id="fRemain" type="number" value="0"></div>
+      <div class="form-group"><label>Bộ phận sử dụng</label><select id="fDept"></select></div>
+      <div class="form-group"><label>Người quản lý</label><input id="fCustodian"></div>
+      <div class="form-group"><label>Vị trí</label><input id="fLocation" placeholder="Phòng kế toán, kho CCDC..."></div>
+      <div class="form-group"><label>Trạng thái</label><select id="fStatus"></select></div>
+      <div class="form-group full"><label>Ghi chú</label><textarea id="fNote" rows="3"></textarea></div>
+    </div></div>
+    <div class="modal-foot"><button class="btn ghost" onclick="closeModal('toolModal')">Hủy</button><button class="btn primary" onclick="saveTool()">Lưu CCDC</button></div>
+  </div></div>
+
+  <div class="modal" id="assignModal"><div class="modal-box">
+    <div class="modal-head"><b>Tạo phiếu cấp phát / thu hồi / điều chuyển</b><button class="btn ghost" onclick="closeModal('assignModal')">✕</button></div>
+    <div class="modal-body"><div class="form-grid">
+      <div class="form-group"><label>Tìm CCDC</label><input id="aToolSearch" class="field" placeholder="Tìm mã, tên CCDC..." oninput="refreshToolOptions()"></div>
+      <div class="form-group"><label>Mã CCDC</label><select id="aTool"></select></div>
+      <div class="form-group"><label>Ngày</label><input id="aDate" type="date"></div>
+      <div class="form-group"><label>Loại phiếu</label><select id="aType"><option>Cấp phát</option><option>Thu hồi</option><option>Điều chuyển</option></select></div>
+      <div class="form-group"><label>Người nhận / trả</label><input id="aPerson"></div>
+      <div class="form-group"><label>Bộ phận</label><select id="aDept"></select></div>
+      <div class="form-group"><label>Số lượng</label><input id="aQty" type="number" value="1"></div>
+      <div class="form-group full"><label>Ghi chú</label><input id="aNote"></div>
+    </div></div>
+    <div class="modal-foot"><button class="btn ghost" onclick="closeModal('assignModal')">Hủy</button><button class="btn primary" onclick="saveAssignment()">Lưu phiếu</button></div>
+  </div></div>
+
+  <div class="modal" id="inventoryModal"><div class="modal-box">
+    <div class="modal-head"><b>Ghi nhận kiểm kê CCDC</b><button class="btn ghost" onclick="closeModal('inventoryModal')">✕</button></div>
+    <div class="modal-body"><div class="form-grid">
+      <div class="form-group"><label>Năm kiểm kê</label><select id="iYear"></select></div>
+      <div class="form-group"><label>Ngày kiểm kê</label><input id="iDate" type="date"></div>
+      <div class="form-group"><label>Tìm CCDC</label><input id="iToolSearch" class="field" placeholder="Tìm mã, tên CCDC..." oninput="refreshToolOptions()"></div>
+      <div class="form-group"><label>Mã CCDC</label><select id="iTool" onchange="syncBookQty()"></select></div>
+      <div class="form-group"><label>SL sổ sách</label><input id="iBookQty" type="number" value="0"></div>
+      <div class="form-group"><label>SL thực tế</label><input id="iActualQty" type="number" value="0"></div>
+      <div class="form-group"><label>Tình trạng</label><select id="iCondition"><option>Tốt</option><option>Đang dùng bình thường</option><option>Hỏng</option><option>Mất</option><option>Thiếu</option><option>Chờ thanh lý</option></select></div>
+      <div class="form-group"><label>Kiến nghị xử lý</label><select id="iAction"><option>Không xử lý</option><option>Tiếp tục sử dụng</option><option>Sửa chữa</option><option>Bồi thường</option><option>Thanh lý</option><option>Điều chỉnh sổ sách</option></select></div>
+      <div class="form-group full"><label>Ghi chú</label><input id="iNote"></div>
+    </div></div>
+    <div class="modal-foot"><button class="btn ghost" onclick="closeModal('inventoryModal')">Hủy</button><button class="btn primary" onclick="saveInventory()">Lưu kiểm kê</button></div>
+  </div></div>
+
+  <div id="toastBox" class="toast-box"></div>
+  <div id="confirmModal" class="confirm-modal"><div class="confirm-box"><div class="confirm-icon">⚠️</div><h3 id="confirmTitle">Xác nhận</h3><p id="confirmMessage">Bạn có chắc muốn thực hiện?</p><div class="confirm-actions"><button class="btn ghost" onclick="closeConfirm(false)">Hủy</button><button class="btn danger" onclick="closeConfirm(true)">Đồng ý</button></div></div></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
