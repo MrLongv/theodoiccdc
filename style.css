@@ -217,10 +217,16 @@ button{
   color:#fff;
 }
 
-.btn.asset{
+button.btn.asset{
   background:linear-gradient(135deg,#f59e0b,#f97316);
   color:#fff;
   border:none;
+}
+.form-group input,
+.form-group select,
+.form-group textarea{
+  background:#fff !important;
+  color:#0f172a !important;
 }
 
 .btn.asset:hover{
