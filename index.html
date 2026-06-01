@@ -50,6 +50,7 @@
         <button class="btn ghost" onclick="exportExcel()">⬇ Xuất Excel</button>
         <label class="btn blue" for="excelImport">⬆ Import Excel</label>
         <input type="file" id="excelImport" accept=".xlsx,.xls,.csv" hidden onchange="importExcelMulti(event)">
+        <button class="btn blue" onclick="openAssetModal()">+ Thêm tài sản</button>
         <button class="btn primary" onclick="openToolModal()">+ Thêm CCDC</button>
       </div>
     </div>
@@ -105,8 +106,7 @@
         <option value="">Tất cả trạng thái</option>
       </select>
 
-      <button class="btn primary" onclick="openAssetModal()">+ Thêm tài sản</button>
-    </div>
+       </div>
 
     <div class="table-wrap">
       <table>
@@ -177,9 +177,9 @@
       <div class="card section">
         <div class="section-title"><h3>Báo cáo nhanh</h3><small>Tổng hợp dữ liệu từ D1</small></div>
         <div class="grid dept-grid">
-          <div class="dept"><h4>CCDC theo bộ phận</h4><p>Kiểm kê số lượng từng phòng/xưởng.</p><button class="btn ghost" onclick="renderReportByDept()">Xem báo cáo</button></div>
-          <div class="dept"><h4>CCDC cần xử lý</h4><p>Lọc mất, hỏng, thanh lý, thiếu kiểm kê.</p><button class="btn ghost" onclick="showIssueTools()">Xem danh sách</button></div>
-          <div class="dept"><h4>Xuất kiểm kê Excel</h4><p>Xuất đầy đủ danh sách CCDC, cấp phát và kiểm kê.</p><button class="btn ghost" onclick="exportExcel()">Xuất Excel</button></div>
+          <div class="dept"><h4>Tài sản + CCDC theo bộ phận</h4><p>Kiểm kê số lượng từng phòng/xưởng.</p><button class="btn ghost" onclick="renderReportByDept()">Xem báo cáo</button></div>
+          <div class="dept"><h4>Tài sản + CCDC cần xử lý</h4><p>Lọc mất, hỏng, thanh lý, thiếu kiểm kê.</p><button class="btn ghost" onclick="showIssueTools()">Xem danh sách</button></div>
+          <div class="dept"><h4>Xuất kiểm kê Excel</h4><p>Xuất đầy đủ danh sách tài sản, CCDC, cấp phát và kiểm kê.</p><button class="btn ghost" onclick="exportExcel()">Xuất Excel</button></div>
         </div>
         <div class="table-wrap" style="margin-top:16px"><table><thead><tr><th>Bộ phận</th><th>Tổng CCDC</th><th>Đang dùng</th><th>Trong kho</th><th>Hỏng/Mất/Thanh lý</th><th>Tổng nguyên giá</th></tr></thead><tbody id="reportDeptRows"><tr><td colspan="6">Bấm “Xem báo cáo” để tạo báo cáo.</td></tr></tbody></table></div>
       </div>
@@ -191,7 +191,7 @@
         <div class="hint">Đổi API_BASE bên dưới thành domain Worker của bạn. Nếu chưa có Worker, app vẫn có thể chạy bằng localStorage để test giao diện.</div>
         <div class="form-grid">
           <div class="form-group full"><label>API_BASE</label><input id="apiBaseInput" placeholder="https://ccdc-api.xxx.workers.dev"></div>
-          <div class="form-group full"><label>Endpoint đề xuất</label><textarea rows="7" readonly>/api/login
+          <div class="form-group full"><label>Endpoint đề xuất</label><textarea rows="7" readonly>
 /api/login
 /api/assets
 /api/tools
@@ -341,7 +341,7 @@
       <div class="form-group"><label>Năm kiểm kê</label><select id="iYear"></select></div>
       <div class="form-group"><label>Ngày kiểm kê</label><input id="iDate" type="date"></div>
       <div class="form-group"><label>Tài sản / CCDC</label><input id="iToolSearch" class="field" placeholder="Tìm mã, tên CCDC..." oninput="refreshToolOptions()"></div>
-      <div class="form-group"><label>Mã CCDC</label><select id="iTool" onchange="syncBookQty()"></select></div>
+      <div class="form-group"><label>Tài sản / CCDC</label><select id="iTool" onchange="syncBookQty()"></select></div>
       <div class="form-group"><label>SL sổ sách</label><input id="iBookQty" type="number" value="0"></div>
       <div class="form-group"><label>SL thực tế</label><input id="iActualQty" type="number" value="0"></div>
       <div class="form-group"><label>Tình trạng</label><select id="iCondition"><option>Tốt</option><option>Đang dùng bình thường</option><option>Hỏng</option><option>Mất</option><option>Thiếu</option><option>Chờ thanh lý</option></select></div>
