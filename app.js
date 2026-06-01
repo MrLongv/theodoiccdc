@@ -83,6 +83,7 @@ function showToast(message, type='success', title='Thông báo'){
     <div>${icons[type] || 'ℹ️'}</div>
     <div><b>${title}</b><span>${message}</span></div>
   `;
+
   box.appendChild(div);
 
   setTimeout(() => {
@@ -205,6 +206,56 @@ function isIssueTool(a){
 }
 
 /* =======================
+   ALL ITEMS: TÀI SẢN + CCDC
+======================= */
+function getAllItems(){
+  const assetItems = assets.map(a => ({
+    item_type: 'asset',
+    id: a.id,
+    code: assetCode(a),
+    name: assetName(a),
+    category: assetCategory(a),
+    dept: assetDept(a),
+    qty: assetQty(a),
+    cost: assetCost(a),
+    custodian: a.custodian || '',
+    location: a.location || '',
+    status: a.status || 'stock',
+    label: `[Tài sản] ${assetCode(a)} - ${assetName(a)} - ${assetDept(a) || 'Chưa gán'}`
+  }));
+
+  const toolItems = tools.map(a => ({
+    item_type: 'tool',
+    id: a.id,
+    code: toolCode(a),
+    name: toolName(a),
+    category: toolCategory(a),
+    dept: toolDept(a),
+    qty: toolQty(a),
+    cost: toolCost(a),
+    custodian: a.custodian || '',
+    location: a.location || '',
+    status: a.status || 'stock',
+    label: `[CCDC] ${toolCode(a)} - ${toolName(a)} - ${toolDept(a) || 'Chưa gán'}`
+  }));
+
+  return [...assetItems, ...toolItems];
+}
+
+function findItemByValue(value){
+  const [itemType, itemId] = String(value || '').split('|');
+
+  return getAllItems().find(x =>
+    x.item_type === itemType &&
+    Number(x.id) === Number(itemId)
+  );
+}
+
+function itemTypeLabel(type){
+  return type === 'asset' ? 'Tài sản' : 'CCDC';
+}
+
+/* =======================
    INIT
 ======================= */
 function init(){
@@ -247,7 +298,11 @@ function init(){
     btn.onclick = () => setView(btn.dataset.view);
   });
 
-  loadRemote().finally(renderAll);
+  if(CCDC_TOKEN){
+    loadRemote().finally(renderAll);
+  }else{
+    renderAll();
+  }
 }
 
 function fillYearSelect(){
@@ -427,36 +482,14 @@ function renderDashboardTable(){
   const q = $('dashSearch')?.value || '';
   const st = $('dashStatus')?.value || '';
 
-  const assetRows = assets.map(a => ({
-    code: assetCode(a),
-    category: assetCategory(a),
-    name: assetName(a),
-    dept: assetDept(a),
-    custodian: a.custodian,
-    qty: assetQty(a),
-    status: a.status,
-    kind: 'Tài sản'
-  }));
-
-  const toolRows = tools.map(a => ({
-    code: toolCode(a),
-    category: toolCategory(a),
-    name: toolName(a),
-    dept: toolDept(a),
-    custodian: a.custodian,
-    qty: toolQty(a),
-    status: a.status,
-    kind: 'CCDC'
-  }));
-
-  const rows = [...assetRows, ...toolRows]
-    .filter(a => !q || norm(Object.values(a).join(' ')).includes(norm(q)))
+  const rows = getAllItems()
+    .filter(a => !q || norm([a.code,a.name,a.category,a.dept,a.custodian,a.location].join(' ')).includes(norm(q)))
     .filter(a => !st || a.status === st)
     .slice(0,10);
 
   $('dashRows').innerHTML = rows.map(a => `
     <tr>
-      <td><b>${a.code}</b><div style="font-size:11px;color:var(--muted)">${a.kind}</div></td>
+      <td><b>${a.code}</b><div style="font-size:11px;color:var(--muted)">${itemTypeLabel(a.item_type)}</div></td>
       <td>${categoryBadge(a.category)}</td>
       <td>${a.name}</td>
       <td>${a.dept || '-'}</td>
@@ -841,36 +874,62 @@ function refreshToolOptions(){
     i: norm($('iToolSearch')?.value || '')
   };
 
-  const label = a => `${toolCode(a)} - ${toolName(a)} - ${toolDept(a) || 'Chưa gán'}`;
-
-  const match = (a, k) => {
+  const match = (x, k) => {
     if(!k) return true;
-    return norm([toolCode(a), toolName(a), toolDept(a), a.custodian, a.location].join(' ')).includes(k);
+
+    return norm([
+      x.code,
+      x.name,
+      x.category,
+      x.dept,
+      x.custodian,
+      x.location,
+      x.item_type
+    ].join(' ')).includes(k);
   };
 
-  fillSelect('aTool', tools.filter(a => match(a, keys.a)), a => toolCode(a), label);
-  fillSelect('iTool', tools.filter(a => match(a, keys.i)), a => toolCode(a), label);
+  fillSelect(
+    'aTool',
+    getAllItems().filter(x => match(x, keys.a)),
+    x => `${x.item_type}|${x.id}`,
+    x => x.label
+  );
+
+  fillSelect(
+    'iTool',
+    getAllItems().filter(x => match(x, keys.i)),
+    x => `${x.item_type}|${x.id}`,
+    x => x.label
+  );
 }
 
 function openAssignModal(){
   editingAssignmentId = null;
+
   $('aDate').value = todayISO();
   $('aType').value = 'Cấp phát';
   $('aPerson').value = '';
   $('aQty').value = 1;
   $('aNote').value = '';
+
   refreshToolOptions();
+
   $('assignModal').classList.add('show');
 }
 
 function assignmentPayload(){
-  const code = $('aTool').value;
-  const t = tools.find(a => toolCode(a) === code);
+  const item = findItemByValue($('aTool').value);
   const deptName = $('aDept').value;
 
   return {
-    tool_id: t ? t.id : null,
-    tool_code: code,
+    item_type: item ? item.item_type : '',
+    item_id: item ? item.id : null,
+    item_code: item ? item.code : '',
+    item_name: item ? item.name : '',
+
+    tool_id: item && item.item_type === 'tool' ? item.id : null,
+    tool_code: item ? item.code : '',
+
     assigned_date: $('aDate').value,
     type: $('aType').value,
     person: $('aPerson').value.trim(),
@@ -884,8 +943,8 @@ function assignmentPayload(){
 async function saveAssignment(){
   const p = assignmentPayload();
 
-  if(!p.tool_id){
-    showToast('Chọn CCDC', 'warn', 'Thiếu CCDC');
+  if(!p.item_id){
+    showToast('Chọn tài sản / CCDC', 'warn', 'Thiếu dữ liệu');
     return;
   }
 
@@ -913,18 +972,29 @@ async function saveAssignment(){
 }
 
 function renderAssignments(){
-  $('assignRows').innerHTML = assignments.map(a => `
-    <tr>
-      <td>${a.assigned_date || ''}</td>
-      <td><b>${a.tool_code || ''}</b></td>
-      <td>${a.type || ''}</td>
-      <td>${a.person || ''}</td>
-      <td>${a.department_name || ''}</td>
-      <td>${a.quantity || 1}</td>
-      <td>${a.note || ''}</td>
-      <td><button class="btn danger" onclick="deleteAssignment(${a.id})">Xóa</button></td>
-    </tr>
-  `).join('') || '<tr><td colspan="8">Chưa có phiếu</td></tr>';
+  $('assignRows').innerHTML = assignments.map(a => {
+    const type = a.item_type || (a.tool_id ? 'tool' : 'tool');
+    const code = a.item_code || a.tool_code || '';
+    const name = a.item_name || '';
+
+    return `
+      <tr>
+        <td>${a.assigned_date || ''}</td>
+        <td>
+          <b>${code}</b>
+          <div style="font-size:12px;color:var(--muted)">
+            ${itemTypeLabel(type)}${name ? ' - ' + name : ''}
+          </div>
+        </td>
+        <td>${a.type || ''}</td>
+        <td>${a.person || ''}</td>
+        <td>${a.department_name || ''}</td>
+        <td>${a.quantity || 1}</td>
+        <td>${a.note || ''}</td>
+        <td><button class="btn danger" onclick="deleteAssignment(${a.id})">Xóa</button></td>
+      </tr>
+    `;
+  }).join('') || '<tr><td colspan="8">Chưa có phiếu</td></tr>';
 }
 
 async function deleteAssignment(id){
@@ -940,6 +1010,7 @@ async function deleteAssignment(id){
 
 function openInventoryModal(){
   editingInventoryId = null;
+
   $('iYear').value = String(new Date().getFullYear());
   $('iDate').value = todayISO();
   $('iBookQty').value = 0;
@@ -955,23 +1026,28 @@ function openInventoryModal(){
 }
 
 function syncBookQty(){
-  const t = tools.find(a => toolCode(a) === $('iTool')?.value);
+  const item = findItemByValue($('iTool')?.value);
 
-  if(t){
-    $('iBookQty').value = toolQty(t);
-    $('iActualQty').value = toolQty(t);
+  if(item){
+    $('iBookQty').value = item.qty;
+    $('iActualQty').value = item.qty;
   }
 }
 
 function inventoryPayload(){
-  const code = $('iTool').value;
-  const t = tools.find(a => toolCode(a) === code);
+  const item = findItemByValue($('iTool').value);
   const book = Number($('iBookQty').value || 0);
   const actual = Number($('iActualQty').value || 0);
 
   return {
-    tool_id: t ? t.id : null,
-    tool_code: code,
+    item_type: item ? item.item_type : '',
+    item_id: item ? item.id : null,
+    item_code: item ? item.code : '',
+    item_name: item ? item.name : '',
+
+    tool_id: item && item.item_type === 'tool' ? item.id : null,
+    tool_code: item ? item.code : '',
+
     inventory_year: Number($('iYear').value),
     inventory_date: $('iDate').value,
     book_qty: book,
@@ -986,8 +1062,8 @@ function inventoryPayload(){
 async function saveInventory(){
   const p = inventoryPayload();
 
-  if(!p.tool_id){
-    showToast('Chọn CCDC kiểm kê', 'warn', 'Thiếu CCDC');
+  if(!p.item_id){
+    showToast('Chọn tài sản / CCDC kiểm kê', 'warn', 'Thiếu dữ liệu');
     return;
   }
 
@@ -1010,19 +1086,30 @@ async function saveInventory(){
 }
 
 function renderInventories(){
-  $('inventoryRows').innerHTML = inventories.map(i => `
-    <tr>
-      <td>${i.inventory_year || ''}</td>
-      <td>${i.inventory_date || ''}</td>
-      <td><b>${i.tool_code || ''}</b></td>
-      <td>${i.book_qty || 0}</td>
-      <td>${i.actual_qty || 0}</td>
-      <td><b>${i.difference_qty || 0}</b></td>
-      <td>${i.condition || ''}</td>
-      <td>${i.action || ''}</td>
-      <td><button class="btn danger" onclick="deleteInventory(${i.id})">Xóa</button></td>
-    </tr>
-  `).join('') || '<tr><td colspan="9">Chưa có dữ liệu kiểm kê</td></tr>';
+  $('inventoryRows').innerHTML = inventories.map(i => {
+    const type = i.item_type || (i.tool_id ? 'tool' : 'tool');
+    const code = i.item_code || i.tool_code || '';
+    const name = i.item_name || '';
+
+    return `
+      <tr>
+        <td>${i.inventory_year || ''}</td>
+        <td>${i.inventory_date || ''}</td>
+        <td>
+          <b>${code}</b>
+          <div style="font-size:12px;color:var(--muted)">
+            ${itemTypeLabel(type)}${name ? ' - ' + name : ''}
+          </div>
+        </td>
+        <td>${i.book_qty || 0}</td>
+        <td>${i.actual_qty || 0}</td>
+        <td><b>${i.difference_qty || 0}</b></td>
+        <td>${i.condition || ''}</td>
+        <td>${i.action || ''}</td>
+        <td><button class="btn danger" onclick="deleteInventory(${i.id})">Xóa</button></td>
+      </tr>
+    `;
+  }).join('') || '<tr><td colspan="9">Chưa có dữ liệu kiểm kê</td></tr>';
 }
 
 async function deleteInventory(id){
@@ -1052,8 +1139,8 @@ function setView(id){
     assets:['Danh sách tài sản','Quản lý tài sản cố định / tài sản kế toán.'],
     tools:['Danh sách CCDC','Quản lý chi tiết từng công cụ, dụng cụ.'],
     departments:['Bộ phận sử dụng','Cơ cấu phòng ban để gắn tài sản và CCDC.'],
-    assignments:['Cấp phát / Thu hồi','Lịch sử bàn giao công cụ, dụng cụ.'],
-    inventories:['Kiểm kê','Ghi nhận kiểm kê năm, số lượng sổ sách và thực tế.'],
+    assignments:['Cấp phát / Thu hồi','Lịch sử bàn giao tài sản, công cụ, dụng cụ.'],
+    inventories:['Kiểm kê','Ghi nhận kiểm kê tài sản, CCDC theo năm.'],
     reports:['Báo cáo','Báo cáo kiểm kê và xuất dữ liệu.'],
     settings:['Cấu hình API','Kết nối Cloudflare Worker + D1.']
   };
@@ -1262,11 +1349,18 @@ function exportExcel(){
     wb,
     sheet(
       'LỊCH SỬ CẤP PHÁT THU HỒI',
-      ['STT','Ngày','Mã CCDC','Loại phiếu','Người nhận/trả','Bộ phận','SL','Ghi chú'],
+      ['STT','Ngày','Loại','Mã','Tên tài sản / CCDC','Loại phiếu','Người nhận/trả','Bộ phận','SL','Ghi chú'],
       assignments.map((a,i) => [
-        i + 1, a.assigned_date || '', a.tool_code || '',
-        a.type || '', a.person || '', a.department_name || '',
-        a.quantity || 1, a.note || ''
+        i + 1,
+        a.assigned_date || '',
+        itemTypeLabel(a.item_type || 'tool'),
+        a.item_code || a.tool_code || '',
+        a.item_name || '',
+        a.type || '',
+        a.person || '',
+        a.department_name || '',
+        a.quantity || 1,
+        a.note || ''
       ])
     ),
     'Cap_phat_thu_hoi'
@@ -1276,12 +1370,20 @@ function exportExcel(){
     wb,
     sheet(
       'BIÊN BẢN KIỂM KÊ',
-      ['STT','Năm','Ngày kiểm kê','Mã CCDC','SL sổ sách','SL thực tế','Chênh lệch','Tình trạng','Kiến nghị','Ghi chú'],
+      ['STT','Năm','Ngày kiểm kê','Loại','Mã','Tên tài sản / CCDC','SL sổ sách','SL thực tế','Chênh lệch','Tình trạng','Kiến nghị','Ghi chú'],
       inventories.map((a,i) => [
-        i + 1, a.inventory_year || '', a.inventory_date || '',
-        a.tool_code || '', a.book_qty || 0, a.actual_qty || 0,
-        a.difference_qty || 0, a.condition || '',
-        a.action || '', a.note || ''
+        i + 1,
+        a.inventory_year || '',
+        a.inventory_date || '',
+        itemTypeLabel(a.item_type || 'tool'),
+        a.item_code || a.tool_code || '',
+        a.item_name || '',
+        a.book_qty || 0,
+        a.actual_qty || 0,
+        a.difference_qty || 0,
+        a.condition || '',
+        a.action || '',
+        a.note || ''
       ])
     ),
     'Kiem_ke'
@@ -1514,9 +1616,8 @@ function renderCategoryChart(){
 
   const map = {};
 
-  [...assets, ...tools].forEach(a => {
-    const key = a.asset_code ? assetCategory(a) : toolCategory(a);
-    map[key || 'Khác'] = (map[key || 'Khác'] || 0) + 1;
+  getAllItems().forEach(a => {
+    map[a.category || 'Khác'] = (map[a.category || 'Khác'] || 0) + 1;
   });
 
   destroyChart(chartCategoryObj);
@@ -1533,10 +1634,7 @@ function renderDeptChart(){
   if(!el) return;
 
   const rows = departments.map(d => {
-    const count =
-      assets.filter(a => norm(assetDept(a)) === norm(d.name)).length +
-      tools.filter(a => norm(toolDept(a)) === norm(d.name)).length;
-
+    const count = getAllItems().filter(a => norm(a.dept) === norm(d.name)).length;
     return {name:d.name, count};
   }).filter(x => x.count > 0).sort((a,b) => b.count - a.count).slice(0,10);
 
@@ -1556,14 +1654,9 @@ function renderValueChart(){
   const map = {};
   statuses.forEach(s => map[s.label] = 0);
 
-  assets.forEach(a => {
+  getAllItems().forEach(a => {
     const key = statusLabel(a.status);
-    map[key] = (map[key] || 0) + assetCost(a);
-  });
-
-  tools.forEach(a => {
-    const key = statusLabel(a.status);
-    map[key] = (map[key] || 0) + toolCost(a);
+    map[key] = (map[key] || 0) + a.cost;
   });
 
   destroyChart(chartValueObj);
