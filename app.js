@@ -400,12 +400,24 @@ async function saveRemote(path, payload, method, reload=true){
       body: payload ? JSON.stringify(payload) : undefined
     });
 
-    const data = await res.json().catch(() => ({
-      success: res.ok
-    }));
+    const text = await res.text();
+
+    let data = {};
+    try{
+      data = text ? JSON.parse(text) : {};
+    }catch{
+      data = {
+        success:false,
+        error:text || 'API không trả về JSON'
+      };
+    }
 
     if(!res.ok || data.success === false){
-      showToast(data.error || 'Không rõ lỗi', 'error', 'Lỗi lưu D1');
+      showToast(
+        data.error || `HTTP ${res.status}`,
+        'error',
+        'Không kết nối được API'
+      );
       return false;
     }
 
@@ -417,7 +429,11 @@ async function saveRemote(path, payload, method, reload=true){
     return true;
 
   }catch(e){
-    showToast(e.message, 'error', 'Không kết nối được API');
+    showToast(
+      e.message || 'Không gọi được API',
+      'error',
+      'Không kết nối được API'
+    );
     return false;
   }
 }
