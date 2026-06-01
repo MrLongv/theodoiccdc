@@ -1464,115 +1464,363 @@ function excelDateToISO(value){
   return s;
 }
 
-async function importExcel(event){
+async function importExcelMulti(event){
   const file = event.target.files[0];
+
   if(!file) return;
 
   try{
     showToast('Đang đọc file Excel...', 'info', 'Import');
 
-    const wb = XLSX.read(await file.arrayBuffer(), { type:'array' });
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-
-    const rows = XLSX.utils.sheet_to_json(sheet, {
-      defval:'',
-      raw:true
+    const wb = XLSX.read(await file.arrayBuffer(), {
+      type:'array'
     });
 
-    let ok = 0;
-    let dup = 0;
-    let fail = 0;
+    let assetOk = 0;
+    let assetDup = 0;
+    let assetFail = 0;
 
-    const codes = new Set(tools.map(a => norm(toolCode(a))));
+    let toolOk = 0;
+    let toolDup = 0;
+    let toolFail = 0;
 
-    for(const row of rows){
-      const code = String(readCell(row, [
-        'Mã CCDC','Ma CCDC','Mã tài sản','Ma tai san','Mã TS','Ma TS'
-      ], '')).trim();
+    const assetCodes = new Set(
+      assets.map(a => norm(assetCode(a)))
+    );
 
-      const name = String(readCell(row, [
-        'Tên CCDC','Ten CCDC','Tên công cụ dụng cụ','Ten cong cu dung cu',
-        'Tên tài sản','Ten tai san','Tên','Ten'
-      ], '')).trim();
+    const toolCodes = new Set(
+      tools.map(a => norm(toolCode(a)))
+    );
 
-      if(!code || !name){
-        fail++;
-        continue;
+    /* =========================
+       IMPORT SHEET TÀI SẢN
+       Sheet name: TaiSan
+    ========================= */
+    const assetSheet =
+      wb.Sheets['TaiSan'] ||
+      wb.Sheets['Tài sản'] ||
+      wb.Sheets['Tai San'] ||
+      wb.Sheets['Assets'];
+
+    if(assetSheet){
+      const rows = XLSX.utils.sheet_to_json(assetSheet, {
+        defval:'',
+        raw:true
+      });
+
+      for(const row of rows){
+        const code = String(readCell(row, [
+          'Mã tài sản',
+          'Ma tai san',
+          'Mã TS',
+          'Ma TS',
+          'Asset Code'
+        ], '')).trim();
+
+        const name = String(readCell(row, [
+          'Tên tài sản',
+          'Ten tai san',
+          'Tên TS',
+          'Ten TS',
+          'Asset Name'
+        ], '')).trim();
+
+        if(!code || !name){
+          assetFail++;
+          continue;
+        }
+
+        if(assetCodes.has(norm(code))){
+          assetDup++;
+          continue;
+        }
+
+        const dept = String(readCell(row, [
+          'Bộ phận',
+          'Bo phan',
+          'Phòng ban',
+          'Phong ban',
+          'Department'
+        ], '')).trim();
+
+        const payload = {
+          asset_code: code,
+
+          category: String(readCell(row, [
+            'Nhóm tài sản',
+            'Nhom tai san',
+            'Nhóm TS',
+            'Nhom TS',
+            'Loại tài sản',
+            'Loai tai san',
+            'Category'
+          ], 'Tài sản khác')).trim(),
+
+          asset_name: name,
+
+          specification: String(readCell(row, [
+            'Quy cách',
+            'Quy cach',
+            'Model',
+            'Mô tả',
+            'Mo ta',
+            'Specification'
+          ], '')).trim(),
+
+          serial_number: String(readCell(row, [
+            'Serial',
+            'Số serial',
+            'So serial',
+            'Serial Number'
+          ], '')).trim(),
+
+          unit: String(readCell(row, [
+            'Đơn vị tính',
+            'Don vi tinh',
+            'ĐVT',
+            'DVT',
+            'Unit'
+          ], 'Cái')).trim(),
+
+          quantity: Number(readCell(row, [
+            'Số lượng',
+            'So luong',
+            'SL',
+            'Quantity'
+          ], 1)) || 1,
+
+          purchase_date: excelDateToISO(readCell(row, [
+            'Ngày mua',
+            'Ngay mua',
+            'Ngày ghi tăng',
+            'Ngay ghi tang',
+            'Purchase Date'
+          ], '')),
+
+          original_cost: Number(readCell(row, [
+            'Nguyên giá',
+            'Nguyen gia',
+            'Đơn giá',
+            'Don gia',
+            'Giá trị',
+            'Gia tri',
+            'Original Cost'
+          ], 0)) || 0,
+
+          remaining_value: Number(readCell(row, [
+            'Giá trị còn lại',
+            'Gia tri con lai',
+            'Remaining Value'
+          ], 0)) || 0,
+
+          department_id: deptIdByName(dept),
+          department_name: dept,
+
+          custodian: String(readCell(row, [
+            'Người quản lý',
+            'Nguoi quan ly',
+            'Người dùng',
+            'Nguoi dung',
+            'Người nhận',
+            'Nguoi nhan',
+            'Custodian'
+          ], '')).trim(),
+
+          location: String(readCell(row, [
+            'Vị trí',
+            'Vi tri',
+            'Nơi sử dụng',
+            'Noi su dung',
+            'Location'
+          ], '')).trim(),
+
+          status: normalizeImportStatus(readCell(row, [
+            'Trạng thái',
+            'Trang thai',
+            'Status'
+          ], 'stock')),
+
+          note: String(readCell(row, [
+            'Ghi chú',
+            'Ghi chu',
+            'Note'
+          ], '')).trim()
+        };
+
+        const saved = await saveRemote('/api/assets', payload, 'POST', false);
+
+        if(saved){
+          assetCodes.add(norm(code));
+          assetOk++;
+        }else{
+          assetFail++;
+        }
       }
+    }
 
-      if(codes.has(norm(code))){
-        dup++;
-        continue;
-      }
+    /* =========================
+       IMPORT SHEET CCDC
+       Sheet name: CCDC
+    ========================= */
+    const toolSheet =
+      wb.Sheets['CCDC'] ||
+      wb.Sheets['CongCuDungCu'] ||
+      wb.Sheets['Công cụ dụng cụ'] ||
+      wb.Sheets['Tools'];
 
-      const dept = String(readCell(row, [
-        'Bộ phận','Bo phan','Phòng ban','Phong ban'
-      ], '')).trim();
+    if(toolSheet){
+      const rows = XLSX.utils.sheet_to_json(toolSheet, {
+        defval:'',
+        raw:true
+      });
 
-      const payload = {
-        tool_code: code,
+      for(const row of rows){
+        const code = String(readCell(row, [
+          'Mã CCDC',
+          'Ma CCDC',
+          'Mã công cụ dụng cụ',
+          'Ma cong cu dung cu',
+          'Tool Code'
+        ], '')).trim();
 
-        category: String(readCell(row, [
-          'Nhóm CCDC','Nhom CCDC','Nhóm','Nhom','Loại','Loai'
-        ], 'Khác')).trim(),
+        const name = String(readCell(row, [
+          'Tên CCDC',
+          'Ten CCDC',
+          'Tên công cụ dụng cụ',
+          'Ten cong cu dung cu',
+          'Tool Name'
+        ], '')).trim();
 
-        tool_name: name,
+        if(!code || !name){
+          toolFail++;
+          continue;
+        }
 
-        specification: String(readCell(row, [
-          'Quy cách','Quy cach','Model','Mô tả','Mo ta'
-        ], '')).trim(),
+        if(toolCodes.has(norm(code))){
+          toolDup++;
+          continue;
+        }
 
-        serial_number: String(readCell(row, [
-          'Serial','Số serial','So serial'
-        ], '')).trim(),
+        const dept = String(readCell(row, [
+          'Bộ phận',
+          'Bo phan',
+          'Phòng ban',
+          'Phong ban',
+          'Department'
+        ], '')).trim();
 
-        unit: String(readCell(row, [
-          'Đơn vị tính','Don vi tinh','ĐVT','DVT'
-        ], 'Cái')).trim(),
+        const payload = {
+          tool_code: code,
 
-        quantity: Number(readCell(row, [
-          'Số lượng','So luong','SL','Quantity'
-        ], 1)) || 1,
+          category: String(readCell(row, [
+            'Nhóm CCDC',
+            'Nhom CCDC',
+            'Nhóm',
+            'Nhom',
+            'Loại',
+            'Loai',
+            'Category'
+          ], 'Khác')).trim(),
 
-        purchase_date: excelDateToISO(readCell(row, [
-          'Ngày mua','Ngay mua','Ngày ghi tăng','Ngay ghi tang'
-        ], '')),
+          tool_name: name,
 
-        original_cost: Number(readCell(row, [
-          'Đơn giá','Don gia','Nguyên giá','Nguyen gia','Giá trị','Gia tri'
-        ], 0)) || 0,
+          specification: String(readCell(row, [
+            'Quy cách',
+            'Quy cach',
+            'Model',
+            'Mô tả',
+            'Mo ta',
+            'Specification'
+          ], '')).trim(),
 
-        remaining_value: Number(readCell(row, [
-          'Giá trị còn lại','Gia tri con lai'
-        ], 0)) || 0,
+          serial_number: String(readCell(row, [
+            'Serial',
+            'Số serial',
+            'So serial',
+            'Serial Number'
+          ], '')).trim(),
 
-        department_id: deptIdByName(dept),
-        department_name: dept,
+          unit: String(readCell(row, [
+            'Đơn vị tính',
+            'Don vi tinh',
+            'ĐVT',
+            'DVT',
+            'Unit'
+          ], 'Cái')).trim(),
 
-        custodian: String(readCell(row, [
-          'Người quản lý','Nguoi quan ly','Người dùng','Nguoi dung','Người nhận','Nguoi nhan'
-        ], '')).trim(),
+          quantity: Number(readCell(row, [
+            'Số lượng',
+            'So luong',
+            'SL',
+            'Quantity'
+          ], 1)) || 1,
 
-        location: String(readCell(row, [
-          'Vị trí','Vi tri','Nơi sử dụng','Noi su dung'
-        ], '')).trim(),
+          purchase_date: excelDateToISO(readCell(row, [
+            'Ngày mua',
+            'Ngay mua',
+            'Ngày ghi tăng',
+            'Ngay ghi tang',
+            'Purchase Date'
+          ], '')),
 
-        status: normalizeImportStatus(readCell(row, [
-          'Trạng thái','Trang thai','Status'
-        ], 'stock')),
+          original_cost: Number(readCell(row, [
+            'Nguyên giá',
+            'Nguyen gia',
+            'Đơn giá',
+            'Don gia',
+            'Giá trị',
+            'Gia tri',
+            'Original Cost'
+          ], 0)) || 0,
 
-        note: String(readCell(row, [
-          'Ghi chú','Ghi chu','Note'
-        ], '')).trim()
-      };
+          remaining_value: Number(readCell(row, [
+            'Giá trị còn lại',
+            'Gia tri con lai',
+            'Remaining Value'
+          ], 0)) || 0,
 
-      const saved = await saveRemote('/api/tools', payload, 'POST', false);
+          department_id: deptIdByName(dept),
+          department_name: dept,
 
-      if(saved){
-        codes.add(norm(code));
-        ok++;
-      }else{
-        fail++;
+          custodian: String(readCell(row, [
+            'Người quản lý',
+            'Nguoi quan ly',
+            'Người dùng',
+            'Nguoi dung',
+            'Người nhận',
+            'Nguoi nhan',
+            'Custodian'
+          ], '')).trim(),
+
+          location: String(readCell(row, [
+            'Vị trí',
+            'Vi tri',
+            'Nơi sử dụng',
+            'Noi su dung',
+            'Location'
+          ], '')).trim(),
+
+          status: normalizeImportStatus(readCell(row, [
+            'Trạng thái',
+            'Trang thai',
+            'Status'
+          ], 'stock')),
+
+          note: String(readCell(row, [
+            'Ghi chú',
+            'Ghi chu',
+            'Note'
+          ], '')).trim()
+        };
+
+        const saved = await saveRemote('/api/tools', payload, 'POST', false);
+
+        if(saved){
+          toolCodes.add(norm(code));
+          toolOk++;
+        }else{
+          toolFail++;
+        }
       }
     }
 
@@ -1580,18 +1828,17 @@ async function importExcel(event){
     renderAll();
 
     showToast(
-      `Thành công ${ok} dòng, trùng ${dup}, lỗi ${fail}`,
-      ok ? 'success' : 'warn',
-      'Kết quả import'
+      `Tài sản: ${assetOk} thành công, ${assetDup} trùng, ${assetFail} lỗi | CCDC: ${toolOk} thành công, ${toolDup} trùng, ${toolFail} lỗi`,
+      'success',
+      'Import hoàn tất'
     );
 
   }catch(e){
-    showToast(e.message, 'error', 'Lỗi đọc Excel');
+    showToast(e.message, 'error', 'Lỗi import Excel');
   }
 
   event.target.value = '';
 }
-
 /* =======================
    CHARTS
 ======================= */
