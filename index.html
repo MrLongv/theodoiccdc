@@ -321,8 +321,8 @@
   <div class="modal" id="assignModal"><div class="modal-box">
     <div class="modal-head"><b>Tạo phiếu cấp phát / thu hồi / điều chuyển</b><button class="btn ghost" onclick="closeModal('assignModal')">✕</button></div>
     <div class="modal-body"><div class="form-grid">
-      <div class="form-group"><label>Tìm CCDC</label><input id="aToolSearch" class="field" placeholder="Tìm mã, tên CCDC..." oninput="refreshToolOptions()"></div>
-      <div class="form-group"><label>Mã CCDC</label><select id="aTool"></select></div>
+      <div class="form-group"><label>Tìm tài sản / CCDC</label><input id="aToolSearch" class="field" placeholder="Tìm mã, tên CCDC..." oninput="refreshToolOptions()"></div>
+      <div class="form-group"><label>Tài sản / CCDC</label><select id="aTool"></select></div>
       <div class="form-group"><label>Ngày</label><input id="aDate" type="date"></div>
       <div class="form-group"><label>Loại phiếu</label><select id="aType"><option>Cấp phát</option><option>Thu hồi</option><option>Điều chuyển</option></select></div>
       <div class="form-group"><label>Người nhận / trả</label><input id="aPerson"></div>
@@ -338,7 +338,7 @@
     <div class="modal-body"><div class="form-grid">
       <div class="form-group"><label>Năm kiểm kê</label><select id="iYear"></select></div>
       <div class="form-group"><label>Ngày kiểm kê</label><input id="iDate" type="date"></div>
-      <div class="form-group"><label>Tìm CCDC</label><input id="iToolSearch" class="field" placeholder="Tìm mã, tên CCDC..." oninput="refreshToolOptions()"></div>
+      <div class="form-group"><label>Tài sản / CCDC</label><input id="iToolSearch" class="field" placeholder="Tìm mã, tên CCDC..." oninput="refreshToolOptions()"></div>
       <div class="form-group"><label>Mã CCDC</label><select id="iTool" onchange="syncBookQty()"></select></div>
       <div class="form-group"><label>SL sổ sách</label><input id="iBookQty" type="number" value="0"></div>
       <div class="form-group"><label>SL thực tế</label><input id="iActualQty" type="number" value="0"></div>
