@@ -50,7 +50,7 @@
         <button class="btn ghost" onclick="exportExcel()">⬇ Xuất Excel</button>
         <label class="btn blue" for="excelImport">⬆ Import Excel</label>
         <input type="file" id="excelImport" accept=".xlsx,.xls,.csv" hidden onchange="importExcelMulti(event)">
-        <button class="btn primary" onclick="openToolModal()">+ Thêm CCDC</button>
+        <button class="btn primary" onclick="openToolModal()">+ Thêm tài sản</button>
       </div>
     </div>
 
@@ -301,7 +301,7 @@
   <div class="modal" id="toolModal"><div class="modal-box">
     <div class="modal-head"><b id="toolModalTitle">Thêm CCDC</b><button class="btn ghost" onclick="closeModal('toolModal')">✕</button></div>
     <div class="modal-body"><div class="form-grid">
-      <div class="form-group"><label>Mã CCDC</label><input id="fCode" placeholder="VH-CCDC-0001"></div>
+      <div class="form-group"><label>Tài sản / CCDC</label><input id="fCode" placeholder="VH-CCDC-0001"></div>
       <div class="form-group"><label>Nhóm CCDC</label><select id="fCategory"></select></div>
       <div class="form-group full"><label>Tên CCDC</label><input id="fName" placeholder="Bàn làm việc, ghế xoay, máy tính cầm tay..."></div>
       <div class="form-group"><label>Quy cách / model</label><input id="fSpec" placeholder="Kích thước, model, mô tả ngắn"></div>
