@@ -75,7 +75,7 @@
             <input class="field search" id="dashSearch" placeholder="Tìm mã, tên, bộ phận, người quản lý..." oninput="renderDashboardTable()">
             <select class="field" id="dashStatus" onchange="renderDashboardTable()"><option value="">Tất cả trạng thái</option></select>
           </div>
-          <div class="table-wrap"><table><thead><tr><th>Mã CCDC</th><th>Nhóm</th><th>Tên CCDC</th><th>Bộ phận</th><th>Người quản lý</th><th>SL</th><th>Trạng thái</th></tr></thead><tbody id="dashRows"></tbody></table></div>
+          <div class="table-wrap"><table><thead><tr><th>Tài sản / CCDC</th><th>Nhóm</th><th>Tên CCDC</th><th>Bộ phận</th><th>Người quản lý</th><th>SL</th><th>Trạng thái</th></tr></thead><tbody id="dashRows"></tbody></table></div>
         </div>
         <div class="card section">
           <div class="section-title"><h3>Cảnh báo</h3><small>tự động</small></div>
@@ -162,7 +162,7 @@
     <section class="view" id="assignments">
       <div class="card section">
         <div class="section-title"><h3>Lịch sử cấp phát / thu hồi / điều chuyển</h3><button class="btn blue" onclick="openAssignModal()">+ Tạo phiếu</button></div>
-        <div class="table-wrap"><table><thead><tr><th>Ngày</th><th>Mã CCDC</th><th>Loại phiếu</th><th>Người nhận/trả</th><th>Bộ phận</th><th>SL</th><th>Ghi chú</th><th>Thao tác</th></tr></thead><tbody id="assignRows"></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>Ngày</th><th>Tài sản / CCDC</th><th>Loại phiếu</th><th>Người nhận/trả</th><th>Bộ phận</th><th>SL</th><th>Ghi chú</th><th>Thao tác</th></tr></thead><tbody id="assignRows"></tbody></table></div>
       </div>
     </section>
 
