@@ -927,3 +927,19 @@ tbody tr:last-child td{
     flex-direction:column;
   }
 }
+.btn.filter-export{
+  min-height:40px;
+  padding:8px 14px;
+  border-radius:12px;
+  background:#eef6ff;
+  color:#1d4ed8;
+  border:1px solid #bfdbfe;
+  box-shadow:none;
+}
+
+.btn.filter-export:hover{
+  background:#dbeafe;
+  color:#1e40af;
+  transform:none;
+  box-shadow:none;
+}
