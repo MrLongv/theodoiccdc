@@ -254,7 +254,160 @@ function findItemByValue(value){
 function itemTypeLabel(type){
   return type === 'asset' ? 'Tài sản' : 'CCDC';
 }
+function fillReportYearSelect(){
+  const el = $('reportInventoryYear');
+  if(!el) return;
 
+  const y = new Date().getFullYear();
+  const years = [];
+
+  for(let i = 2026; i <= y + 1; i++){
+    years.push(i);
+  }
+
+  el.innerHTML = '<option value="">Tất cả năm kiểm kê</option>';
+
+  years.forEach(year => {
+    const op = document.createElement('option');
+    op.value = year;
+    op.textContent = year;
+    el.appendChild(op);
+  });
+}
+
+function clearReportFilter(){
+  if($('reportInventoryYear')) $('reportInventoryYear').value = '';
+  if($('reportFromDate')) $('reportFromDate').value = '';
+  if($('reportToDate')) $('reportToDate').value = '';
+
+  showToast('Đã xóa điều kiện lọc báo cáo', 'success', 'Báo cáo');
+}
+
+function getFilteredInventoriesForReport(){
+  const year = $('reportInventoryYear')?.value || '';
+  const fromDate = $('reportFromDate')?.value || '';
+  const toDate = $('reportToDate')?.value || '';
+
+  return inventories.filter(i => {
+    const invYear = String(i.inventory_year || '');
+    const invDate = String(i.inventory_date || '');
+
+    if(year && invYear !== String(year)){
+      return false;
+    }
+
+    if(fromDate && invDate < fromDate){
+      return false;
+    }
+
+    if(toDate && invDate > toDate){
+      return false;
+    }
+
+    return true;
+  });
+}
+
+function exportInventoryReportFiltered(){
+  const rows = getFilteredInventoriesForReport();
+
+  if(!rows.length){
+    showToast('Không có dữ liệu kiểm kê theo điều kiện đã chọn', 'warn', 'Xuất báo cáo');
+    return;
+  }
+
+  const wb = XLSX.utils.book_new();
+  const now = new Date();
+
+  const year = $('reportInventoryYear')?.value || '';
+  const fromDate = $('reportFromDate')?.value || '';
+  const toDate = $('reportToDate')?.value || '';
+
+  let filterText = 'Tất cả dữ liệu kiểm kê';
+
+  if(year){
+    filterText = 'Năm kiểm kê: ' + year;
+  }
+
+  if(fromDate || toDate){
+    filterText = `Từ ngày: ${fromDate || '...'} đến ngày: ${toDate || '...'}`;
+  }
+
+  const data = [
+    ['CÔNG TY TNHH MAY XK VIỆT HỒNG'],
+    ['BÁO CÁO KIỂM KÊ TÀI SẢN / CCDC'],
+    [filterText],
+    ['Ngày xuất: ' + now.toLocaleDateString('vi-VN')],
+    [],
+    [
+      'STT',
+      'Năm kiểm kê',
+      'Ngày kiểm kê',
+      'Loại',
+      'Mã',
+      'Tên tài sản / CCDC',
+      'SL sổ sách',
+      'SL thực tế',
+      'Chênh lệch',
+      'Tình trạng',
+      'Kiến nghị xử lý',
+      'Ghi chú'
+    ],
+    ...rows.map((i, idx) => [
+      idx + 1,
+      i.inventory_year || '',
+      i.inventory_date || '',
+      itemTypeLabel(i.item_type || 'tool'),
+      i.item_code || i.tool_code || '',
+      i.item_name || '',
+      i.book_qty || 0,
+      i.actual_qty || 0,
+      i.difference_qty || 0,
+      i.condition || '',
+      i.action || '',
+      i.note || ''
+    ])
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(data);
+
+  ws['!merges'] = [
+    {s:{r:0,c:0}, e:{r:0,c:11}},
+    {s:{r:1,c:0}, e:{r:1,c:11}},
+    {s:{r:2,c:0}, e:{r:2,c:11}},
+    {s:{r:3,c:0}, e:{r:3,c:11}}
+  ];
+
+  ws['!cols'] = [
+    {wch:6},
+    {wch:14},
+    {wch:14},
+    {wch:12},
+    {wch:18},
+    {wch:32},
+    {wch:12},
+    {wch:12},
+    {wch:12},
+    {wch:18},
+    {wch:22},
+    {wch:28}
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Bao_cao_kiem_ke');
+
+  XLSX.writeFile(
+    wb,
+    'bao_cao_kiem_ke_' +
+    (year || 'tat_ca') +
+    '_' +
+    now.getFullYear() +
+    String(now.getMonth() + 1).padStart(2,'0') +
+    String(now.getDate()).padStart(2,'0') +
+    '.xlsx'
+  );
+
+  showToast('Đã xuất báo cáo kiểm kê theo điều kiện lọc', 'success', 'Thành công');
+}
 /* =======================
    INIT
 ======================= */
@@ -293,6 +446,7 @@ function init(){
   fillSelect('aDept', departments, d=>d.name, d=>d.name);
 
   fillYearSelect();
+  fillReportYearSelect();
 
   document.querySelectorAll('.nav button').forEach(btn => {
     btn.onclick = () => setView(btn.dataset.view);
