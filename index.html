@@ -176,6 +176,22 @@
     <section class="view" id="reports">
       <div class="card section">
         <div class="section-title"><h3>Báo cáo nhanh</h3><small>Tổng hợp dữ liệu từ D1</small></div>
+        <div class="toolbar">
+  <select class="field" id="reportInventoryYear">
+    <option value="">Tất cả năm kiểm kê</option>
+  </select>
+
+  <input class="field" id="reportFromDate" type="date">
+  <input class="field" id="reportToDate" type="date">
+
+  <button class="btn blue" onclick="exportInventoryReportFiltered()">
+    Xuất kiểm kê theo lọc
+  </button>
+
+  <button class="btn ghost" onclick="clearReportFilter()">
+    Xóa lọc
+  </button>
+</div>
         <div class="grid dept-grid">
           <div class="dept"><h4>Tài sản + CCDC theo bộ phận</h4><p>Kiểm kê số lượng từng phòng/xưởng.</p><button class="btn ghost" onclick="renderReportByDept()">Xem báo cáo</button></div>
           <div class="dept"><h4>Tài sản + CCDC cần xử lý</h4><p>Lọc mất, hỏng, thanh lý, thiếu kiểm kê.</p><button class="btn ghost" onclick="showIssueTools()">Xem danh sách</button></div>
