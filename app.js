@@ -1,5 +1,6 @@
 let CCDC_TOKEN = localStorage.getItem('CCDC_TOKEN') || '';
-let CURRENT_API_BASE = localStorage.getItem('CCDC_API_BASE') || API_BASE || '';
+let CURRENT_API_BASE = localStorage.getItem('CCDC_API_BASE') || (typeof API_BASE !== 'undefined' ? API_BASE : '') || '';
+CURRENT_API_BASE = String(CURRENT_API_BASE || '').replace(/\/$/, '');
 
 const departments = [
   {id:1,name:'Phòng hành chính quản trị',code:'HCQT',children:['Bảo vệ','Tạp vụ','Nhà ăn']},
@@ -124,6 +125,92 @@ function fillSelect(id, arr, getVal=x=>x, getText=x=>x, first=''){
     op.value = getVal(x);
     op.textContent = getText(x);
     el.appendChild(op);
+  });
+}
+
+
+function uniqueClean(arr){
+  return [...new Set(
+    arr
+      .map(x => String(x || '').trim())
+      .filter(Boolean)
+  )].sort((a,b) => a.localeCompare(b, 'vi'));
+}
+
+function setSelectOptionsKeepValue(id, values, firstText){
+  const el = $(id);
+  if(!el) return;
+
+  const old = el.value;
+  el.innerHTML = `<option value="">${firstText}</option>`;
+
+  uniqueClean(values).forEach(v => {
+    const op = document.createElement('option');
+    op.value = v;
+    op.textContent = v;
+    el.appendChild(op);
+  });
+
+  el.value = values.includes(old) ? old : '';
+}
+
+function refreshListFilters(){
+  setSelectOptionsKeepValue(
+    'filterAssetCategory',
+    assets.map(assetCategory),
+    'Tất cả nhóm tài sản'
+  );
+
+  setSelectOptionsKeepValue(
+    'filterAssetDept',
+    assets.map(assetDept),
+    'Tất cả bộ phận'
+  );
+
+  setSelectOptionsKeepValue(
+    'filterStatus',
+    statuses.map(s => s.value),
+    'Tất cả trạng thái'
+  );
+
+  const fs = $('filterStatus');
+  if(fs){
+    [...fs.options].forEach(op => {
+      const st = statuses.find(s => s.value === op.value);
+      if(st) op.textContent = st.label;
+    });
+  }
+
+  setSelectOptionsKeepValue(
+    'filterAssetStatus',
+    statuses.map(s => s.value),
+    'Tất cả trạng thái'
+  );
+
+  const fas = $('filterAssetStatus');
+  if(fas){
+    [...fas.options].forEach(op => {
+      const st = statuses.find(s => s.value === op.value);
+      if(st) op.textContent = st.label;
+    });
+  }
+
+  setSelectOptionsKeepValue(
+    'filterCategory',
+    tools.map(toolCategory),
+    'Tất cả nhóm'
+  );
+
+  setSelectOptionsKeepValue(
+    'filterDept',
+    tools.map(toolDept),
+    'Tất cả bộ phận'
+  );
+}
+
+function clearListFilters(){
+  ['filterAssetCategory','filterAssetDept','filterAssetStatus','filterCategory','filterDept','filterStatus'].forEach(id => {
+    if($(id)) $(id).value = '';
   });
 }
 
@@ -596,6 +683,7 @@ async function saveRemote(path, payload, method, reload=true){
    RENDER
 ======================= */
 function renderAll(){
+  refreshListFilters();
   renderKpi();
   renderDashboardTable();
   renderWarnings();
@@ -1636,41 +1724,29 @@ function excelDateToISO(value){
 
 async function importExcelMulti(event){
   const file = event.target.files[0];
-
   if(!file) return;
 
   try{
     showToast('Đang đọc file Excel...', 'info', 'Import');
 
     const wb = XLSX.read(await file.arrayBuffer(), {
-      type:'array'
+      type:'array',
+      cellDates:false
     });
 
-    let assetOk = 0;
-    let assetDup = 0;
-    let assetFail = 0;
+    const assetSheet = wb.Sheets['TaiSan'];
+    const toolSheet = wb.Sheets['CCDC'];
 
-    let toolOk = 0;
-    let toolDup = 0;
-    let toolFail = 0;
+    if(!assetSheet && !toolSheet){
+      showToast('File Excel cần có đúng 2 sheet: TaiSan và CCDC', 'error', 'Sai mẫu import');
+      return;
+    }
 
-    const assetCodes = new Set(
-      assets.map(a => norm(assetCode(a)))
-    );
+    let assetOk = 0, assetDup = 0, assetFail = 0;
+    let toolOk = 0, toolDup = 0, toolFail = 0;
 
-    const toolCodes = new Set(
-      tools.map(a => norm(toolCode(a)))
-    );
-
-    /* =========================
-       IMPORT SHEET TÀI SẢN
-       Sheet name: TaiSan
-    ========================= */
-    const assetSheet =
-      wb.Sheets['TaiSan'] ||
-      wb.Sheets['Tài sản'] ||
-      wb.Sheets['Tai San'] ||
-      wb.Sheets['Assets'];
+    const assetCodes = new Set(assets.map(a => norm(assetCode(a))));
+    const toolCodes = new Set(tools.map(a => norm(toolCode(a))));
 
     if(assetSheet){
       const rows = XLSX.utils.sheet_to_json(assetSheet, {
@@ -1680,20 +1756,14 @@ async function importExcelMulti(event){
 
       for(const row of rows){
         const code = String(readCell(row, [
-          'Mã tài sản',
-          'Ma tai san',
-          'Mã TS',
-          'Ma TS',
-          'Asset Code'
+          'Mã tài sản','Ma tai san','Mã TS','Ma TS','Asset Code'
         ], '')).trim();
 
         const name = String(readCell(row, [
-          'Tên tài sản',
-          'Ten tai san',
-          'Tên TS',
-          'Ten TS',
-          'Asset Name'
+          'Tên tài sản','Ten tai san','Tên TS','Ten TS','Asset Name'
         ], '')).trim();
+
+        if(!code && !name) continue;
 
         if(!code || !name){
           assetFail++;
@@ -1706,114 +1776,62 @@ async function importExcelMulti(event){
         }
 
         const dept = String(readCell(row, [
-          'Bộ phận',
-          'Bo phan',
-          'Phòng ban',
-          'Phong ban',
-          'Department'
+          'Phòng ban','Phong ban','Bộ phận','Bo phan','Department'
         ], '')).trim();
 
         const payload = {
           asset_code: code,
-
-          category: String(readCell(row, [
-            'Nhóm tài sản',
-            'Nhom tai san',
-            'Nhóm TS',
-            'Nhom TS',
-            'Loại tài sản',
-            'Loai tai san',
-            'Category'
-          ], 'Tài sản khác')).trim(),
-
           asset_name: name,
 
+          category: String(readCell(row, [
+            'Nhóm tài sản','Nhom tai san','Nhóm TS','Nhom TS','Loại tài sản','Loai tai san','Category'
+          ], 'Tài sản khác')).trim(),
+
           specification: String(readCell(row, [
-            'Quy cách',
-            'Quy cach',
-            'Model',
-            'Mô tả',
-            'Mo ta',
-            'Specification'
+            'Quy cách / Model','Quy cách','Quy cach','Model','Mô tả','Mo ta','Specification'
           ], '')).trim(),
 
           serial_number: String(readCell(row, [
-            'Serial',
-            'Số serial',
-            'So serial',
-            'Serial Number'
+            'Serial','Số serial','So serial','Serial Number'
           ], '')).trim(),
 
           unit: String(readCell(row, [
-            'Đơn vị tính',
-            'Don vi tinh',
-            'ĐVT',
-            'DVT',
-            'Unit'
-          ], 'Cái')).trim(),
+            'Đơn vị tính','Don vi tinh','ĐVT','DVT','Unit'
+          ], 'Cái')).trim() || 'Cái',
 
           quantity: Number(readCell(row, [
-            'Số lượng',
-            'So luong',
-            'SL',
-            'Quantity'
+            'Số lượng','So luong','SL','Quantity'
           ], 1)) || 1,
 
           purchase_date: excelDateToISO(readCell(row, [
-            'Ngày mua',
-            'Ngay mua',
-            'Ngày ghi tăng',
-            'Ngay ghi tang',
-            'Purchase Date'
+            'Ngày mua','Ngay mua','Ngày ghi tăng','Ngay ghi tang','Purchase Date'
           ], '')),
 
           original_cost: Number(readCell(row, [
-            'Nguyên giá',
-            'Nguyen gia',
-            'Đơn giá',
-            'Don gia',
-            'Giá trị',
-            'Gia tri',
-            'Original Cost'
+            'Nguyên giá','Nguyen gia','Đơn giá','Don gia','Giá trị','Gia tri','Original Cost'
           ], 0)) || 0,
 
           remaining_value: Number(readCell(row, [
-            'Giá trị còn lại',
-            'Gia tri con lai',
-            'Remaining Value'
+            'Giá trị còn lại','Gia tri con lai','Remaining Value'
           ], 0)) || 0,
 
           department_id: deptIdByName(dept),
           department_name: dept,
 
           custodian: String(readCell(row, [
-            'Người quản lý',
-            'Nguoi quan ly',
-            'Người dùng',
-            'Nguoi dung',
-            'Người nhận',
-            'Nguoi nhan',
-            'Custodian'
+            'Người quản lý','Nguoi quan ly','Người dùng','Nguoi dung','Người nhận','Nguoi nhan','Custodian'
           ], '')).trim(),
 
           location: String(readCell(row, [
-            'Vị trí',
-            'Vi tri',
-            'Nơi sử dụng',
-            'Noi su dung',
-            'Location'
+            'Vị trí','Vi tri','Nơi sử dụng','Noi su dung','Location'
           ], '')).trim(),
 
           status: normalizeImportStatus(readCell(row, [
-            'Trạng thái',
-            'Trang thai',
-            'Status'
+            'Trạng thái','Trang thai','Status'
           ], 'stock')),
 
           note: String(readCell(row, [
-            'Ghi chú',
-            'Ghi chu',
-            'Note'
+            'Ghi chú','Ghi chu','Note'
           ], '')).trim()
         };
 
@@ -1828,16 +1846,6 @@ async function importExcelMulti(event){
       }
     }
 
-    /* =========================
-       IMPORT SHEET CCDC
-       Sheet name: CCDC
-    ========================= */
-    const toolSheet =
-      wb.Sheets['CCDC'] ||
-      wb.Sheets['CongCuDungCu'] ||
-      wb.Sheets['Công cụ dụng cụ'] ||
-      wb.Sheets['Tools'];
-
     if(toolSheet){
       const rows = XLSX.utils.sheet_to_json(toolSheet, {
         defval:'',
@@ -1846,20 +1854,14 @@ async function importExcelMulti(event){
 
       for(const row of rows){
         const code = String(readCell(row, [
-          'Mã CCDC',
-          'Ma CCDC',
-          'Mã công cụ dụng cụ',
-          'Ma cong cu dung cu',
-          'Tool Code'
+          'Mã CCDC','Ma CCDC','Mã công cụ dụng cụ','Ma cong cu dung cu','Tool Code'
         ], '')).trim();
 
         const name = String(readCell(row, [
-          'Tên CCDC',
-          'Ten CCDC',
-          'Tên công cụ dụng cụ',
-          'Ten cong cu dung cu',
-          'Tool Name'
+          'Tên công cụ dụng cụ','Ten cong cu dung cu','Tên CCDC','Ten CCDC','Tool Name'
         ], '')).trim();
+
+        if(!code && !name) continue;
 
         if(!code || !name){
           toolFail++;
@@ -1872,114 +1874,62 @@ async function importExcelMulti(event){
         }
 
         const dept = String(readCell(row, [
-          'Bộ phận',
-          'Bo phan',
-          'Phòng ban',
-          'Phong ban',
-          'Department'
+          'Phòng ban','Phong ban','Bộ phận','Bo phan','Department'
         ], '')).trim();
 
         const payload = {
           tool_code: code,
-
-          category: String(readCell(row, [
-            'Nhóm CCDC',
-            'Nhom CCDC',
-            'Nhóm',
-            'Nhom',
-            'Loại',
-            'Loai',
-            'Category'
-          ], 'Khác')).trim(),
-
           tool_name: name,
 
+          category: String(readCell(row, [
+            'Nhóm CCDC','Nhom CCDC','Nhóm','Nhom','Loại','Loai','Category'
+          ], 'Khác')).trim() || 'Khác',
+
           specification: String(readCell(row, [
-            'Quy cách',
-            'Quy cach',
-            'Model',
-            'Mô tả',
-            'Mo ta',
-            'Specification'
+            'Quy cách / Model','Quy cách','Quy cach','Model','Mô tả','Mo ta','Specification'
           ], '')).trim(),
 
           serial_number: String(readCell(row, [
-            'Serial',
-            'Số serial',
-            'So serial',
-            'Serial Number'
+            'Serial','Số serial','So serial','Serial Number'
           ], '')).trim(),
 
           unit: String(readCell(row, [
-            'Đơn vị tính',
-            'Don vi tinh',
-            'ĐVT',
-            'DVT',
-            'Unit'
-          ], 'Cái')).trim(),
+            'Đơn vị tính','Don vi tinh','ĐVT','DVT','Unit'
+          ], 'Cái')).trim() || 'Cái',
 
           quantity: Number(readCell(row, [
-            'Số lượng',
-            'So luong',
-            'SL',
-            'Quantity'
+            'Số lượng','So luong','SL','Quantity'
           ], 1)) || 1,
 
           purchase_date: excelDateToISO(readCell(row, [
-            'Ngày mua',
-            'Ngay mua',
-            'Ngày ghi tăng',
-            'Ngay ghi tang',
-            'Purchase Date'
+            'Ngày mua','Ngay mua','Ngày ghi tăng','Ngay ghi tang','Purchase Date'
           ], '')),
 
           original_cost: Number(readCell(row, [
-            'Nguyên giá',
-            'Nguyen gia',
-            'Đơn giá',
-            'Don gia',
-            'Giá trị',
-            'Gia tri',
-            'Original Cost'
+            'Đơn giá','Don gia','Nguyên giá','Nguyen gia','Giá trị','Gia tri','Original Cost'
           ], 0)) || 0,
 
           remaining_value: Number(readCell(row, [
-            'Giá trị còn lại',
-            'Gia tri con lai',
-            'Remaining Value'
+            'Giá trị còn lại','Gia tri con lai','Remaining Value'
           ], 0)) || 0,
 
           department_id: deptIdByName(dept),
           department_name: dept,
 
           custodian: String(readCell(row, [
-            'Người quản lý',
-            'Nguoi quan ly',
-            'Người dùng',
-            'Nguoi dung',
-            'Người nhận',
-            'Nguoi nhan',
-            'Custodian'
+            'Người quản lý','Nguoi quan ly','Người dùng','Nguoi dung','Người nhận','Nguoi nhan','Custodian'
           ], '')).trim(),
 
           location: String(readCell(row, [
-            'Vị trí',
-            'Vi tri',
-            'Nơi sử dụng',
-            'Noi su dung',
-            'Location'
+            'Vị trí','Vi tri','Nơi sử dụng','Noi su dung','Location'
           ], '')).trim(),
 
           status: normalizeImportStatus(readCell(row, [
-            'Trạng thái',
-            'Trang thai',
-            'Status'
+            'Trạng thái','Trang thai','Status'
           ], 'stock')),
 
           note: String(readCell(row, [
-            'Ghi chú',
-            'Ghi chu',
-            'Note'
+            'Ghi chú','Ghi chu','Note'
           ], '')).trim()
         };
 
@@ -1995,11 +1945,14 @@ async function importExcelMulti(event){
     }
 
     await loadRemote();
+    clearListFilters();
+    assetPage = 1;
+    toolPage = 1;
     renderAll();
 
     showToast(
-      `Tài sản: ${assetOk} thành công, ${assetDup} trùng, ${assetFail} lỗi | CCDC: ${toolOk} thành công, ${toolDup} trùng, ${toolFail} lỗi`,
-      'success',
+      `Tài sản: ${assetOk} dòng, trùng ${assetDup}, lỗi ${assetFail} | CCDC: ${toolOk} dòng, trùng ${toolDup}, lỗi ${toolFail}`,
+      assetOk || toolOk ? 'success' : 'warn',
       'Import hoàn tất'
     );
 
@@ -2009,6 +1962,7 @@ async function importExcelMulti(event){
 
   event.target.value = '';
 }
+
 /* =======================
    CHARTS
 ======================= */
