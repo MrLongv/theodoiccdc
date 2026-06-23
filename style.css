@@ -943,3 +943,20 @@ tbody tr:last-child td{
   transform:none;
   box-shadow:none;
 }
+
+.btn.filter-clear{
+  min-height:40px;
+  padding:8px 14px;
+  border-radius:12px;
+  background:#fff;
+  color:#64748b;
+  border:1px solid #e2e8f0;
+  box-shadow:none;
+}
+
+.btn.filter-clear:hover{
+  background:#f8fafc;
+  color:#334155;
+  transform:none;
+  box-shadow:none;
+}
