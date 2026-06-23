@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Quản lý Tài sản + Công cụ dụng cụ Kế toán - Việt Hồng</title>
-  <link rel="stylesheet" href="style.css?v=human1">
+  <link rel="stylesheet" href="style.css?v=saas2">
 </head>
 <body>
   <div id="loginScreen" class="login-screen">
@@ -57,7 +57,7 @@
 
     <section class="view active" id="dashboard">
       <div class="grid kpis">
-        <div class="card kpi"><div class="label">Tổng CCDC</div><div class="value" id="kpiTotal">0</div><div class="note">Toàn bộ công cụ, dụng cụ đang quản lý</div></div>
+        <div class="card kpi"><div class="label">Tổng tài sản + CCDC</div><div class="value" id="kpiTotal">0</div><div class="note">Toàn bộ tài sản, công cụ dụng cụ đang quản lý</div></div>
         <div class="card kpi"><div class="label">Đang sử dụng</div><div class="value" id="kpiUse">0</div><div class="note">Đã cấp phát cho bộ phận/người dùng</div></div>
         <div class="card kpi"><div class="label">Trong kho</div><div class="value" id="kpiStock">0</div><div class="note">Chưa cấp phát hoặc đã thu hồi</div></div>
         <div class="card kpi"><div class="label">Chênh lệch kiểm kê</div><div class="value" id="kpiDiff">0</div><div class="note">Mất, hỏng, thiếu hoặc cần xử lý</div></div>
@@ -71,12 +71,12 @@
 
       <div class="grid content">
         <div class="card section">
-          <div class="section-title"><h3>CCDC mới cập nhật</h3><small id="toolCountText"></small></div>
+          <div class="section-title"><h3>Dữ liệu mới cập nhật</h3><small id="toolCountText"></small></div>
           <div class="toolbar">
             <input class="field search" id="dashSearch" placeholder="Tìm mã, tên, bộ phận, người quản lý..." oninput="renderDashboardTable()">
             <select class="field" id="dashStatus" onchange="renderDashboardTable()"><option value="">Tất cả trạng thái</option></select>
           </div>
-          <div class="table-wrap"><table><thead><tr><th>Tài sản / CCDC</th><th>Nhóm</th><th>Tên CCDC</th><th>Bộ phận</th><th>Người quản lý</th><th>SL</th><th>Trạng thái</th></tr></thead><tbody id="dashRows"></tbody></table></div>
+          <div class="table-wrap"><table><thead><tr><th>Tài sản / CCDC</th><th>Nhóm</th><th>Tên tài sản / CCDC</th><th>Bộ phận</th><th>Người quản lý</th><th>SL</th><th>Trạng thái</th></tr></thead><tbody id="dashRows"></tbody></table></div>
         </div>
         <div class="card section">
           <div class="section-title"><h3>Cảnh báo</h3><small>tự động</small></div>
@@ -169,7 +169,7 @@
     <section class="view" id="inventories">
       <div class="card section">
         <div class="section-title"><h3>Biên bản kiểm kê</h3><button class="btn blue" onclick="openInventoryModal()">+ Ghi nhận kiểm kê</button></div>
-        <div class="table-wrap"><table><thead><tr><th>Năm</th><th>Ngày kiểm kê</th><th>Mã CCDC</th><th>SL sổ sách</th><th>SL thực tế</th><th>Chênh lệch</th><th>Tình trạng</th><th>Kiến nghị xử lý</th><th>Thao tác</th></tr></thead><tbody id="inventoryRows"></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>Năm</th><th>Ngày kiểm kê</th><th>Tài sản / CCDC</th><th>SL sổ sách</th><th>SL thực tế</th><th>Chênh lệch</th><th>Tình trạng</th><th>Kiến nghị xử lý</th><th>Thao tác</th></tr></thead><tbody id="inventoryRows"></tbody></table></div>
       </div>
     </section>
 
@@ -188,7 +188,7 @@
   Xuất kiểm kê
 </button>
 
-  <button class="btn ghost" onclick="clearReportFilter()">
+  <button class="btn filter-clear" onclick="clearReportFilter()">
     Xóa lọc
   </button>
 </div>
@@ -317,7 +317,7 @@
   <div class="modal" id="toolModal"><div class="modal-box">
     <div class="modal-head"><b id="toolModalTitle">Thêm CCDC</b><button class="btn ghost" onclick="closeModal('toolModal')">✕</button></div>
     <div class="modal-body"><div class="form-grid">
-      <div class="form-group"><label>Tài sản / CCDC</label><input id="fCode" placeholder="VH-CCDC-0001"></div>
+      <div class="form-group"><label>Mã CCDC</label><input id="fCode" placeholder="VH-CCDC-0001"></div>
       <div class="form-group"><label>Nhóm CCDC</label><select id="fCategory"></select></div>
       <div class="form-group full"><label>Tên CCDC</label><input id="fName" placeholder="Bàn làm việc, ghế xoay, máy tính cầm tay..."></div>
       <div class="form-group"><label>Quy cách / model</label><input id="fSpec" placeholder="Kích thước, model, mô tả ngắn"></div>
@@ -373,6 +373,6 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="config.js"></script>
-  <script src="app.js"></script>
+  <script src="app.js?v=import3"></script>
 </body>
 </html>
