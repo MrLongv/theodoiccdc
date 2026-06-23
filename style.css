@@ -59,6 +59,8 @@ button{
   background:rgba(255,255,255,.88);
   backdrop-filter:blur(14px);
   border-right:1px solid var(--line);
+  display:flex;
+  flex-direction:column;
 }
 
 .brand{
@@ -98,6 +100,9 @@ button{
 .nav{
   display:grid;
   gap:6px;
+  flex:1;
+  overflow-y:auto;
+  padding-right:2px;
 }
 
 .nav button{
@@ -127,10 +132,7 @@ button{
 }
 
 .side-footer{
-  position:absolute;
-  left:14px;
-  right:14px;
-  bottom:14px;
+  margin-top:14px;
   padding:12px;
   border-radius:14px;
   background:#f8fafc;
@@ -138,6 +140,7 @@ button{
   color:#64748b;
   font-size:12px;
   line-height:1.45;
+  flex-shrink:0;
 }
 
 /* MAIN */
