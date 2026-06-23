@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Quản lý Tài sản + Công cụ dụng cụ Kế toán - Việt Hồng</title>
-  <link rel="stylesheet" href="style.css?v=saas2">
+  <link rel="stylesheet" href="style.css?v=masters1">
 </head>
 <body>
   <div id="loginScreen" class="login-screen">
@@ -29,6 +29,7 @@
       <button data-view="assets">🏷️ Tài sản</button>
       <button data-view="tools">📦 Công cụ dụng cụ</button>
       <button data-view="departments">🏢 Bộ phận sử dụng</button>
+      <button data-view="masters">🗂️ Danh mục</button>
       <button data-view="assignments">🔁 Cấp phát / Thu hồi</button>
       <button data-view="inventories">✅ Kiểm kê</button>
       <button data-view="reports">📄 Báo cáo</button>
@@ -105,6 +106,7 @@
       <select class="field" id="filterAssetStatus" onchange="assetPage=1;renderAssets()">
         <option value="">Tất cả trạng thái</option>
       </select>
+      <button class="btn filter-clear" onclick="clearAssetFilters()">Xóa lọc</button>
 
        </div>
 
@@ -149,6 +151,7 @@
           <select class="field" id="filterCategory" onchange="toolPage=1;renderTools()"><option value="">Tất cả nhóm</option></select>
           <select class="field" id="filterDept" onchange="toolPage=1;renderTools()"><option value="">Tất cả bộ phận</option></select>
           <select class="field" id="filterStatus" onchange="toolPage=1;renderTools()"><option value="">Tất cả trạng thái</option></select>
+          <button class="btn filter-clear" onclick="clearToolFilters()">Xóa lọc</button>
         </div>
         <div class="table-wrap"><table><thead><tr><th>Mã</th><th>Nhóm</th><th>Tên CCDC</th><th>ĐVT</th><th>SL</th><th>Nguyên giá</th><th>Bộ phận</th><th>Người quản lý</th><th>Vị trí</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody id="toolRows"></tbody></table></div>
         <div class="pager"><div id="pagerInfo">0 dòng</div><div class="pager-actions"><button class="btn ghost" onclick="prevPage()">← Trước</button><span id="pagerPage">Trang 1/1</span><button class="btn ghost" onclick="nextPage()">Sau →</button><select class="field page-size" id="pageSize" onchange="changePageSize()"><option value="10">10 dòng</option><option value="25" selected>25 dòng</option><option value="50">50 dòng</option><option value="100">100 dòng</option></select></div></div>
@@ -157,6 +160,65 @@
 
     <section class="view" id="departments">
       <div class="grid dept-grid" id="deptGrid"></div>
+    </section>
+
+    <section class="view" id="masters">
+      <div class="grid master-grid">
+        <div class="card section master-card">
+          <div class="section-title">
+            <h3>Nhóm CCDC</h3>
+            <small>Dùng cho thêm CCDC, import và bộ lọc</small>
+          </div>
+          <div class="toolbar master-form">
+            <input class="field search" id="newToolCategoryName" placeholder="Tên nhóm CCDC, ví dụ: Bàn ghế">
+            <input class="field" id="newToolCategoryNote" placeholder="Ghi chú">
+            <button class="btn primary" onclick="addMasterCategory('tool')">+ Thêm nhóm</button>
+          </div>
+          <div class="table-wrap master-table">
+            <table>
+              <thead><tr><th>Tên nhóm</th><th>Ghi chú</th><th>Thao tác</th></tr></thead>
+              <tbody id="masterToolCategoryRows"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card section master-card">
+          <div class="section-title">
+            <h3>Nhóm tài sản</h3>
+            <small>Dùng cho thêm tài sản, import và bộ lọc</small>
+          </div>
+          <div class="toolbar master-form">
+            <input class="field search" id="newAssetCategoryName" placeholder="Tên nhóm tài sản, ví dụ: Thiết bị văn phòng">
+            <input class="field" id="newAssetCategoryNote" placeholder="Ghi chú">
+            <button class="btn asset" onclick="addMasterCategory('asset')">+ Thêm nhóm</button>
+          </div>
+          <div class="table-wrap master-table">
+            <table>
+              <thead><tr><th>Tên nhóm</th><th>Ghi chú</th><th>Thao tác</th></tr></thead>
+              <tbody id="masterAssetCategoryRows"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card section master-card master-card-wide">
+          <div class="section-title">
+            <h3>Đơn vị sử dụng / phòng ban</h3>
+            <small>Đồng bộ cho thêm tài sản, CCDC, cấp phát và báo cáo</small>
+          </div>
+          <div class="toolbar master-form">
+            <input class="field search" id="newDeptName" placeholder="Tên phòng ban / đơn vị sử dụng">
+            <input class="field" id="newDeptCode" placeholder="Mã ngắn, ví dụ: KT">
+            <input class="field" id="newDeptNote" placeholder="Ghi chú">
+            <button class="btn blue" onclick="addDepartment()">+ Thêm phòng ban</button>
+          </div>
+          <div class="table-wrap master-table">
+            <table>
+              <thead><tr><th>Phòng ban / đơn vị</th><th>Mã</th><th>Ghi chú</th><th>Thao tác</th></tr></thead>
+              <tbody id="masterDeptRows"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </section>
 
     <section class="view" id="assignments">
@@ -213,6 +275,8 @@
 /api/tools
 /api/assignments
 /api/inventories
+/api/categories
+/api/departments
 /api/dashboard
           </textarea></div>
         </div>
@@ -373,6 +437,6 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="config.js"></script>
-  <script src="app.js?v=import3"></script>
+  <script src="app.js?v=masters1"></script>
 </body>
 </html>
