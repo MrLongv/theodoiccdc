@@ -79,9 +79,12 @@ let confirmResolve = null;
 const $ = id => document.getElementById(id);
 
 const norm = s => String(s || '')
-  .toLowerCase()
+  .replace(/\u00A0/g, ' ')
   .normalize('NFD')
-  .replace(/[\u0300-\u036f]/g,'');
+  .replace(/[\u0300-\u036f]/g,'')
+  .replace(/\s+/g, ' ')
+  .trim()
+  .toLowerCase();
 
 const todayISO = () => new Date().toISOString().slice(0,10);
 const money = n => Number(n || 0).toLocaleString('vi-VN') + ' đ';
@@ -146,11 +149,19 @@ function fillSelect(id, arr, getVal=x=>x, getText=x=>x, first=''){
 
 
 function uniqueClean(arr){
-  return [...new Set(
-    arr
-      .map(x => String(x || '').trim())
-      .filter(Boolean)
-  )].sort((a,b) => a.localeCompare(b, 'vi'));
+  const map = new Map();
+
+  arr.forEach(x => {
+    const value = String(x || '').replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
+    if(!value) return;
+
+    const key = norm(value);
+    if(!map.has(key)){
+      map.set(key, value);
+    }
+  });
+
+  return [...map.values()].sort((a,b) => a.localeCompare(b, 'vi'));
 }
 
 function getDepartmentNames(){
@@ -249,11 +260,43 @@ function fillSelectKeepValue(id, arr, getVal=x=>x, getText=x=>x, first=''){
   el.value = values.includes(old) ? old : '';
 }
 
+function getToolCategoryFilterValues(){
+  return uniqueClean([
+    ...categories,
+    ...tools.map(toolCategory)
+  ]);
+}
+
+function getAssetCategoryFilterValues(){
+  return uniqueClean([
+    ...assetCategories,
+    ...assets.map(assetCategory)
+  ]);
+}
+
+function getAllDepartmentFilterValues(){
+  return uniqueClean([
+    ...getDepartmentNames(),
+    ...assets.map(assetDept),
+    ...tools.map(toolDept)
+  ]);
+}
+
+function normalizeStatusValue(value){
+  const key = norm(value);
+  const found = statuses.find(s => norm(s.value) === key || norm(s.label) === key);
+  return found ? found.value : String(value || '').trim();
+}
+
+function filterEqual(a, b){
+  return norm(a) === norm(b);
+}
+
 function refreshListFilters(){
-  setSelectOptionsKeepValue('filterAssetCategory', assetCategories, 'Tất cả nhóm tài sản');
-  setSelectOptionsKeepValue('filterAssetDept', getDepartmentNames(), 'Tất cả bộ phận');
-  setSelectOptionsKeepValue('filterCategory', categories, 'Tất cả nhóm');
-  setSelectOptionsKeepValue('filterDept', getDepartmentNames(), 'Tất cả bộ phận');
+  setSelectOptionsKeepValue('filterAssetCategory', getAssetCategoryFilterValues(), 'Tất cả nhóm tài sản');
+  setSelectOptionsKeepValue('filterAssetDept', getAllDepartmentFilterValues(), 'Tất cả bộ phận');
+  setSelectOptionsKeepValue('filterCategory', getToolCategoryFilterValues(), 'Tất cả nhóm');
+  setSelectOptionsKeepValue('filterDept', getAllDepartmentFilterValues(), 'Tất cả bộ phận');
 
   setSelectOptionsKeepValue('filterStatus', statuses.map(s => s.value), 'Tất cả trạng thái');
   const fs = $('filterStatus');
@@ -402,7 +445,7 @@ function matchTool(a, q){
 }
 
 function isIssueTool(a){
-  return ['broken','lost','disposal','disposed'].includes(a.status);
+  return ['broken','lost','disposal','disposed'].includes(normalizeStatusValue(a.status));
 }
 
 /* =======================
@@ -420,7 +463,7 @@ function getAllItems(){
     cost: assetCost(a),
     custodian: a.custodian || '',
     location: a.location || '',
-    status: a.status || 'stock',
+    status: normalizeStatusValue(a.status || 'stock'),
     label: `[Tài sản] ${assetCode(a)} - ${assetName(a)} - ${assetDept(a) || 'Chưa gán'}`
   }));
 
@@ -435,7 +478,7 @@ function getAllItems(){
     cost: toolCost(a),
     custodian: a.custodian || '',
     location: a.location || '',
-    status: a.status || 'stock',
+    status: normalizeStatusValue(a.status || 'stock'),
     label: `[CCDC] ${toolCode(a)} - ${toolName(a)} - ${toolDept(a) || 'Chưa gán'}`
   }));
 
@@ -821,8 +864,8 @@ function renderAll(){
 
 function renderKpi(){
   const totalAll = assets.length + tools.length;
-  const useAll = assets.filter(a => a.status === 'use').length + tools.filter(a => a.status === 'use').length;
-  const stockAll = assets.filter(a => a.status === 'stock').length + tools.filter(a => a.status === 'stock').length;
+  const useAll = assets.filter(a => normalizeStatusValue(a.status) === 'use').length + tools.filter(a => normalizeStatusValue(a.status) === 'use').length;
+  const stockAll = assets.filter(a => normalizeStatusValue(a.status) === 'stock').length + tools.filter(a => normalizeStatusValue(a.status) === 'stock').length;
 
   $('kpiTotal').textContent = totalAll;
   $('kpiUse').textContent = useAll;
@@ -865,7 +908,7 @@ function renderDashboardTable(){
 
   const rows = getAllItems()
     .filter(a => !q || norm([a.code,a.name,a.category,a.dept,a.custodian,a.location].join(' ')).includes(norm(q)))
-    .filter(a => !st || a.status === st)
+    .filter(a => !st || normalizeStatusValue(a.status) === st)
     .slice(0,10);
 
   $('dashRows').innerHTML = rows.map(a => `
@@ -876,7 +919,7 @@ function renderDashboardTable(){
       <td>${a.dept || '-'}</td>
       <td>${a.custodian || '-'}</td>
       <td>${a.qty}</td>
-      <td><span class="status ${statusClass(a.status)}">${statusLabel(a.status)}</span></td>
+      <td><span class="status ${statusClass(normalizeStatusValue(a.status))}">${statusLabel(normalizeStatusValue(a.status))}</span></td>
     </tr>
   `).join('') || '<tr><td colspan="7">Không có dữ liệu</td></tr>';
 }
@@ -894,9 +937,9 @@ function renderAssets(){
 
   const rows = assets
     .filter(a => matchAsset(a, q))
-    .filter(a => !cat || norm(assetCategory(a)) === norm(cat))
-    .filter(a => !dept || norm(assetDept(a)) === norm(dept))
-    .filter(a => !st || a.status === st);
+    .filter(a => !cat || filterEqual(assetCategory(a), cat))
+    .filter(a => !dept || filterEqual(assetDept(a), dept))
+    .filter(a => !st || normalizeStatusValue(a.status) === st);
 
   lastAssetRows = rows;
 
@@ -924,7 +967,7 @@ function renderAssets(){
       <td>${assetDept(a) || '-'}</td>
       <td>${a.custodian || '-'}</td>
       <td>${a.location || '-'}</td>
-      <td><span class="status ${statusClass(a.status)}">${statusLabel(a.status)}</span></td>
+      <td><span class="status ${statusClass(normalizeStatusValue(a.status))}">${statusLabel(normalizeStatusValue(a.status))}</span></td>
       <td>
         <button class="btn ghost" onclick="editAsset(${a.id})">Sửa</button>
         <button class="btn danger" onclick="deleteAsset(${a.id})">Xóa</button>
@@ -1071,9 +1114,9 @@ function renderTools(){
 
   const rows = tools
     .filter(a => matchTool(a, q))
-    .filter(a => !cat || norm(toolCategory(a)) === norm(cat))
-    .filter(a => !dept || norm(toolDept(a)) === norm(dept))
-    .filter(a => !st || a.status === st);
+    .filter(a => !cat || filterEqual(toolCategory(a), cat))
+    .filter(a => !dept || filterEqual(toolDept(a), dept))
+    .filter(a => !st || normalizeStatusValue(a.status) === st);
 
   lastToolRows = rows;
 
@@ -1101,7 +1144,7 @@ function renderTools(){
       <td>${toolDept(a) || '-'}</td>
       <td>${a.custodian || '-'}</td>
       <td>${a.location || '-'}</td>
-      <td><span class="status ${statusClass(a.status)}">${statusLabel(a.status)}</span></td>
+      <td><span class="status ${statusClass(normalizeStatusValue(a.status))}">${statusLabel(normalizeStatusValue(a.status))}</span></td>
       <td>
         <button class="btn ghost" onclick="editTool(${a.id})">Sửa</button>
         <button class="btn danger" onclick="deleteTool(${a.id})">Xóa</button>
@@ -1741,8 +1784,8 @@ function renderReportByDept(){
     return {
       name: d.name,
       total: list.length,
-      use: list.filter(a => a.status === 'use').length,
-      stock: list.filter(a => a.status === 'stock').length,
+      use: list.filter(a => normalizeStatusValue(a.status) === 'use').length,
+      stock: list.filter(a => normalizeStatusValue(a.status) === 'stock').length,
       issue: list.filter(isIssueTool).length,
       value: assetList.reduce((s,a) => s + assetCost(a), 0) + toolList.reduce((s,a) => s + toolCost(a), 0)
     };
