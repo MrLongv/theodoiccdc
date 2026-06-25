@@ -18,10 +18,16 @@ const defaultDepartments = [
 ];
 
 const defaultToolCategories = [
-  'Bàn ghế',
-  'Tủ kệ',
+  'Bàn',
+  'Ghế',
+  'Tủ',
+  'Kệ',
+  'Sofa',
+  'Quạt',
+  'Tivi',
+  'Máy in / photocopy',
+  'Máy tính / IT',
   'Thiết bị văn phòng',
-  'Thiết bị IT',
   'Máy móc / dụng cụ sản xuất',
   'Dụng cụ sửa chữa / cơ điện',
   'Dụng cụ đo lường',
@@ -252,10 +258,24 @@ function fillSelectKeepValue(id, arr, getVal=x=>x, getText=x=>x, first=''){
   el.value = values.includes(old) ? old : '';
 }
 
+function getAssetCategoryFilterValues(){
+  return uniqueClean([
+    ...assetCategories,
+    ...assets.map(assetCategory)
+  ]);
+}
+
+function getToolCategoryFilterValues(){
+  return uniqueClean([
+    ...categories,
+    ...tools.map(toolCategory)
+  ]);
+}
+
 function refreshListFilters(){
-  setSelectOptionsKeepValue('filterAssetCategory', assetCategories, 'Tất cả nhóm tài sản');
+  setSelectOptionsKeepValue('filterAssetCategory', getAssetCategoryFilterValues(), 'Tất cả nhóm tài sản');
   setSelectOptionsKeepValue('filterAssetDept', getDepartmentNames(), 'Tất cả bộ phận');
-  setSelectOptionsKeepValue('filterCategory', categories, 'Tất cả nhóm');
+  setSelectOptionsKeepValue('filterCategory', getToolCategoryFilterValues(), 'Tất cả nhóm');
   setSelectOptionsKeepValue('filterDept', getDepartmentNames(), 'Tất cả bộ phận');
 
   setSelectOptionsKeepValue('filterStatus', statuses.map(s => s.value), 'Tất cả trạng thái');
@@ -315,77 +335,170 @@ function findMasterName(list, target){
   return list.find(x => norm(x) === norm(target)) || '';
 }
 
-function normalizeCategoryByMaster(type, rawValue){
-  const fallback = type === 'asset' ? 'Tài sản khác' : 'Khác';
-  const list = type === 'asset' ? assetCategories : categories;
-  const raw = cleanExcelText ? cleanExcelText(rawValue) : String(rawValue || '').trim();
+function hasAnyKeyword(text, keywords){
+  const k = norm(text);
+  return keywords.some(word => k.includes(norm(word)));
+}
 
-  if(!raw) return fallback;
+function isBroadToolGroup(value){
+  const k = norm(value);
+  return [
+    'ban ghe',
+    'tu ke',
+    'thiet bi van phong',
+    'khac',
+    'dung cu',
+    'cong cu dung cu'
+  ].includes(k);
+}
 
-  const exact = findMasterName(list, raw);
-  if(exact) return exact;
+function deriveToolGroup(rawCategory, itemName=''){
+  const fallback = 'Khác';
+  const raw = cleanExcelText(rawCategory);
+  const name = cleanExcelText(itemName);
+  const exactRaw = findMasterName(categories, raw);
 
-  const k = norm(raw);
-
-  if(type === 'tool'){
-    const pick = name => findMasterName(list, name) || fallback;
-
-    if(k.includes('ban') || k.includes('ghe') || k.includes('sofa')){
-      return pick('Bàn ghế');
-    }
-
-    if(k.includes('tu') || k.includes('ke') || k.includes('ho so')){
-      return pick('Tủ kệ');
-    }
-
-    if(k.includes('may tinh') || k.includes('laptop') || k.includes('pc') || k.includes('server') || k.includes('switch') || k.includes('router') || k.includes('camera')){
-      return pick('Thiết bị IT');
-    }
-
-    if(k.includes('may in') || k.includes('may photocopy') || k.includes('tivi') || k.includes('dien thoai') || k.includes('quat') || k.includes('may lanh') || k.includes('dieu hoa')){
-      return pick('Thiết bị văn phòng');
-    }
-
-    if(k.includes('may') || k.includes('khuon') || k.includes('mau') || k.includes('thiet bi san xuat')){
-      return pick('Máy móc / dụng cụ sản xuất');
-    }
-
-    if(k.includes('thuoc') || k.includes('can') || k.includes('do luong') || k.includes('dong ho')){
-      return pick('Dụng cụ đo lường');
-    }
-
-    if(k.includes('bao ho')){
-      return pick('Bảo hộ lao động');
-    }
-
-    if(k.includes('ve sinh') || k.includes('nha an')){
-      return pick('Dụng cụ vệ sinh / nhà ăn');
-    }
-
-    if(k.includes('sua chua') || k.includes('co dien') || k.includes('dung cu')){
-      return pick('Dụng cụ sửa chữa / cơ điện');
-    }
+  // Nếu Excel đã ghi đúng nhóm nhỏ như Ghế, Bàn, Tủ... thì giữ nguyên.
+  if(exactRaw && !isBroadToolGroup(exactRaw)){
+    return exactRaw;
   }
 
-  if(type === 'asset'){
-    const pick = name => findMasterName(list, name) || fallback;
+  const sources = [name, raw].filter(Boolean);
+  const pick = name => findMasterName(categories, name) || name;
 
-    if(k.includes('nha') || k.includes('vat kien truc') || k.includes('xuong')) return pick('Nhà cửa / vật kiến trúc');
-    if(k.includes('may') || k.includes('thiet bi')) return pick('Máy móc thiết bị');
-    if(k.includes('xe') || k.includes('phuong tien')) return pick('Phương tiện vận tải');
-    if(k.includes('van phong')) return pick('Thiết bị văn phòng');
-    if(k.includes('it') || k.includes('may tinh') || k.includes('server')) return pick('Tài sản IT');
+  for(const text of sources){
+    if(hasAnyKeyword(text, ['ghế','ghe','chair'])) return pick('Ghế');
+    if(hasAnyKeyword(text, ['bàn','ban','desk','table'])) return pick('Bàn');
+    if(hasAnyKeyword(text, ['sofa','sa lông','salon'])) return pick('Sofa');
+    if(hasAnyKeyword(text, ['tủ','tu','hồ sơ','ho so','cabinet'])) return pick('Tủ');
+    if(hasAnyKeyword(text, ['kệ','ke','rack','shelf'])) return pick('Kệ');
+    if(hasAnyKeyword(text, ['quạt','quat','fan'])) return pick('Quạt');
+    if(hasAnyKeyword(text, ['tivi','ti vi','tv','màn hình tv'])) return pick('Tivi');
+    if(hasAnyKeyword(text, ['máy in','may in','printer','photocopy','photo copy','scan'])) return pick('Máy in / photocopy');
+    if(hasAnyKeyword(text, ['máy tính','may tinh','laptop','pc','server','switch','router','camera','đầu ghi','dau ghi','ổ cứng','o cung'])) return pick('Máy tính / IT');
+    if(hasAnyKeyword(text, ['máy lạnh','may lanh','điều hòa','dieu hoa','điện thoại','dien thoai','máy chiếu','may chieu','loa','amply','micro','bảng','bang'])) return pick('Thiết bị văn phòng');
+    if(hasAnyKeyword(text, ['máy','may','khuôn','khuon','mẫu','mau','thiết bị sản xuất','thiet bi san xuat','motor','bơm','bom','máy may','may may'])) return pick('Máy móc / dụng cụ sản xuất');
+    if(hasAnyKeyword(text, ['thước','thuoc','cân','can','đo lường','do luong','đồng hồ','dong ho','caliper','panme'])) return pick('Dụng cụ đo lường');
+    if(hasAnyKeyword(text, ['bảo hộ','bao ho','nón','non','giày','giay','ủng','ung','găng tay','gang tay','khẩu trang','khau trang'])) return pick('Bảo hộ lao động');
+    if(hasAnyKeyword(text, ['vệ sinh','ve sinh','nhà ăn','nha an','chổi','choi','cây lau','cay lau','xô','xo','thùng rác','thung rac'])) return pick('Dụng cụ vệ sinh / nhà ăn');
+    if(hasAnyKeyword(text, ['sửa chữa','sua chua','cơ điện','co dien','kìm','kim','búa','bua','khoan','mỏ lết','mo let','vít','vit','tua vít','tua vit'])) return pick('Dụng cụ sửa chữa / cơ điện');
   }
+
+  if(exactRaw) return exactRaw;
 
   return fallback;
 }
 
+function deriveAssetGroup(rawCategory, itemName=''){
+  const fallback = 'Tài sản khác';
+  const raw = cleanExcelText(rawCategory);
+  const name = cleanExcelText(itemName);
+  const exactRaw = findMasterName(assetCategories, raw);
+  if(exactRaw) return exactRaw;
+
+  const source = [name, raw].filter(Boolean).join(' ');
+  const pick = name => findMasterName(assetCategories, name) || name;
+
+  if(hasAnyKeyword(source, ['nhà','nha','vật kiến trúc','vat kien truc','xưởng','xuong'])) return pick('Nhà cửa / vật kiến trúc');
+  if(hasAnyKeyword(source, ['xe','phương tiện','phuong tien','ô tô','oto'])) return pick('Phương tiện vận tải');
+  if(hasAnyKeyword(source, ['máy tính','may tinh','server','it','camera','switch','router'])) return pick('Tài sản IT');
+  if(hasAnyKeyword(source, ['văn phòng','van phong','máy in','may in','photocopy'])) return pick('Thiết bị văn phòng');
+  if(hasAnyKeyword(source, ['máy','may','thiết bị','thiet bi'])) return pick('Máy móc thiết bị');
+
+  return fallback;
+}
+
+function normalizeCategoryByMaster(type, rawValue, itemName=''){
+  if(type === 'asset'){
+    return deriveAssetGroup(rawValue, itemName);
+  }
+
+  return deriveToolGroup(rawValue, itemName);
+}
+
 function normalizeDepartmentByMaster(rawValue){
-  const raw = cleanExcelText ? cleanExcelText(rawValue) : String(rawValue || '').trim();
+  const raw = cleanExcelText(rawValue);
   if(!raw) return '';
 
   const found = departments.find(d => norm(d.name) === norm(raw));
   return found ? found.name : raw;
+}
+
+function nextSortOrder(type){
+  return masterCategoryRows(type).length + 1;
+}
+
+function addCategoryToMemory(type, name, note='Tự thêm từ dữ liệu import'){
+  const cleanName = cleanExcelText(name);
+  if(!cleanName || masterCategoryExists(type, cleanName)) return cleanName;
+
+  masterCategories.push({
+    id:'auto-' + type + '-' + Date.now() + '-' + masterCategories.length,
+    type,
+    name: cleanName,
+    sort_order: nextSortOrder(type),
+    note
+  });
+
+  syncMasterArrays();
+  return cleanName;
+}
+
+async function ensureCategoryFromImport(type, rawCategory, itemName=''){
+  const name = normalizeCategoryByMaster(type, rawCategory, itemName);
+  if(!name) return type === 'asset' ? 'Tài sản khác' : 'Khác';
+
+  if(masterCategoryExists(type, name)) return name;
+
+  const payload = {
+    type,
+    name,
+    sort_order: nextSortOrder(type),
+    note: 'Tự thêm khi import Excel'
+  };
+
+  if(CURRENT_API_BASE){
+    await saveRemote('/api/categories', payload, 'POST', false);
+  }
+
+  addCategoryToMemory(type, name, payload.note);
+  return name;
+}
+
+function syncDerivedCategoriesFromCurrentData(){
+  let changed = false;
+
+  tools.forEach(t => {
+    const name = deriveToolGroup(t.category, toolName(t));
+    if(name && !masterCategoryExists('tool', name)){
+      masterCategories.push({
+        id:'derived-tool-' + Date.now() + '-' + masterCategories.length,
+        type:'tool',
+        name,
+        sort_order: nextSortOrder('tool'),
+        note:'Tự nhận diện từ dữ liệu đã import'
+      });
+      changed = true;
+    }
+  });
+
+  assets.forEach(a => {
+    const name = deriveAssetGroup(a.category, assetName(a));
+    if(name && !masterCategoryExists('asset', name)){
+      masterCategories.push({
+        id:'derived-asset-' + Date.now() + '-' + masterCategories.length,
+        type:'asset',
+        name,
+        sort_order: nextSortOrder('asset'),
+        note:'Tự nhận diện từ dữ liệu đã import'
+      });
+      changed = true;
+    }
+  });
+
+  if(changed){
+    syncMasterArrays();
+  }
 }
 
 async function ensureDepartmentFromImport(rawValue){
@@ -408,7 +521,7 @@ async function ensureDepartmentFromImport(rawValue){
     return name;
   }
 
-  const ok = await saveRemote('/api/departments', payload, 'POST', false);
+  await saveRemote('/api/departments', payload, 'POST', false);
   departments.push({id:'import-' + Date.now() + '-' + departments.length, ...payload});
   syncMasterArrays();
 
@@ -434,7 +547,7 @@ function categoryBadge(t){
 ======================= */
 function assetCode(a){ return a.asset_code ?? ''; }
 function assetName(a){ return a.asset_name ?? ''; }
-function assetCategory(a){ return a.category ?? ''; }
+function assetCategory(a){ return deriveAssetGroup(a.category ?? '', assetName(a)); }
 function assetDept(a){ return a.department_name ?? a.department ?? deptNameById(a.department_id) ?? ''; }
 function assetQty(a){ return Number(a.quantity ?? 0); }
 function assetCost(a){ return Number(a.original_cost ?? 0); }
@@ -464,7 +577,7 @@ function matchAsset(a, q){
 ======================= */
 function toolCode(a){ return a.tool_code ?? a.asset_code ?? a.code ?? ''; }
 function toolName(a){ return a.tool_name ?? a.asset_name ?? a.name ?? ''; }
-function toolCategory(a){ return a.category ?? a.asset_type ?? ''; }
+function toolCategory(a){ return deriveToolGroup(a.category ?? a.asset_type ?? '', toolName(a)); }
 function toolDept(a){ return a.department_name ?? a.department ?? a.dept ?? deptNameById(a.department_id) ?? ''; }
 function toolQty(a){ return Number(a.quantity ?? a.qty ?? 0); }
 function toolCost(a){ return Number(a.original_cost ?? a.cost ?? 0); }
@@ -808,6 +921,7 @@ async function loadRemote(){
     }
 
     applyMasterData(remoteCategories, remoteDepartments);
+    syncDerivedCategoriesFromCurrentData();
 
   }catch(e){
     loadLocal();
@@ -824,6 +938,7 @@ function loadLocal(){
   const localCats = JSON.parse(localStorage.getItem('CCDC_MASTER_CATEGORIES') || '[]');
   const localDepts = JSON.parse(localStorage.getItem('CCDC_MASTER_DEPARTMENTS') || '[]');
   applyMasterData(localCats.length ? localCats : null, localDepts.length ? localDepts : null);
+  syncDerivedCategoriesFromCurrentData();
 }
 
 function saveLocal(){
@@ -2278,7 +2393,7 @@ async function importExcelMulti(event){
 
         const payload = {
           asset_code: code,
-          category: normalizeCategoryByMaster('asset', rawCategory),
+          category: await ensureCategoryFromImport('asset', rawCategory, name),
           asset_name: name,
 
           specification: cleanExcelText(readCell(row, [
@@ -2436,7 +2551,7 @@ async function importExcelMulti(event){
 
         const payload = {
           tool_code: code,
-          category: normalizeCategoryByMaster('tool', rawCategory),
+          category: await ensureCategoryFromImport('tool', rawCategory, name),
           tool_name: name,
 
           specification: cleanExcelText(readCell(row, [
