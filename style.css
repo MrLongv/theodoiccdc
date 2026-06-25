@@ -59,8 +59,6 @@ button{
   background:rgba(255,255,255,.88);
   backdrop-filter:blur(14px);
   border-right:1px solid var(--line);
-  display:flex;
-  flex-direction:column;
 }
 
 .brand{
@@ -100,9 +98,6 @@ button{
 .nav{
   display:grid;
   gap:6px;
-  flex:1;
-  overflow-y:auto;
-  padding-right:2px;
 }
 
 .nav button{
@@ -132,7 +127,10 @@ button{
 }
 
 .side-footer{
-  margin-top:14px;
+  position:absolute;
+  left:14px;
+  right:14px;
+  bottom:14px;
   padding:12px;
   border-radius:14px;
   background:#f8fafc;
@@ -140,7 +138,6 @@ button{
   color:#64748b;
   font-size:12px;
   line-height:1.45;
-  flex-shrink:0;
 }
 
 /* MAIN */
@@ -962,55 +959,4 @@ tbody tr:last-child td{
   color:#334155;
   transform:none;
   box-shadow:none;
-}
-
-/* MASTER DATA / CATEGORY MANAGEMENT */
-.master-grid{
-  grid-template-columns:repeat(2,minmax(0,1fr));
-  align-items:start;
-}
-
-.master-card-wide{
-  grid-column:1/-1;
-}
-
-.master-form .field{
-  border-radius:14px;
-}
-
-.master-form .search{
-  min-width:260px;
-}
-
-.master-table{
-  max-height:360px;
-}
-
-.master-table th:last-child,
-.master-table td:last-child{
-  width:110px;
-  text-align:center;
-}
-
-.btn.filter-clear{
-  min-height:40px;
-  padding:8px 14px;
-  border-radius:12px;
-  background:#fff;
-  color:#64748b;
-  border:1px solid #e2e8f0;
-  box-shadow:none;
-}
-
-.btn.filter-clear:hover{
-  background:#f8fafc;
-  color:#334155;
-  transform:none;
-  box-shadow:none;
-}
-
-@media(max-width:1100px){
-  .master-grid{
-    grid-template-columns:1fr;
-  }
 }
