@@ -2,34 +2,49 @@ let CCDC_TOKEN = localStorage.getItem('CCDC_TOKEN') || '';
 let CURRENT_API_BASE = localStorage.getItem('CCDC_API_BASE') || (typeof API_BASE !== 'undefined' ? API_BASE : '') || '';
 CURRENT_API_BASE = String(CURRENT_API_BASE || '').replace(/\/$/, '');
 
-const departments = [
-  {id:1,name:'Phòng hành chính quản trị',code:'HCQT',children:['Bảo vệ','Tạp vụ','Nhà ăn']},
-  {id:2,name:'Phòng nhân sự',code:'NS',children:[]},
-  {id:3,name:'Phòng kế toán',code:'KT',children:[]},
-  {id:4,name:'Phòng kế hoạch',code:'KH',children:[]},
-  {id:5,name:'Phòng kỹ thuật công nghệ',code:'KTCN',children:[]},
-  {id:6,name:'Kho NPL',code:'NPL',children:[]},
-  {id:7,name:'Kho thành phẩm',code:'TP',children:[]},
-  {id:8,name:'Tổ cắt',code:'CAT',children:[]},
-  {id:9,name:'Cơ điện',code:'CD',children:['Thợ điện','Thợ máy']},
-  {id:10,name:'XN1',code:'XN1',children:['Tổ 1','Tổ 3','Tổ 5','Tổ 7','Tổ 9']},
-  {id:11,name:'XN2',code:'XN2',children:['Tổ 11','Tổ 13','Tổ 15','Tổ 17']},
-  {id:12,name:'XN3',code:'XN3',children:['Tổ 19','Tổ 21','Tổ 23','Tổ 25','Tổ 27']}
+const defaultDepartments = [
+  {id:1,name:'Phòng hành chính quản trị',code:'HCQT',note:''},
+  {id:2,name:'Phòng nhân sự',code:'NS',note:''},
+  {id:3,name:'Phòng kế toán',code:'KT',note:''},
+  {id:4,name:'Phòng kế hoạch',code:'KH',note:''},
+  {id:5,name:'Phòng kỹ thuật công nghệ',code:'KTCN',note:''},
+  {id:6,name:'Kho NPL',code:'NPL',note:''},
+  {id:7,name:'Kho thành phẩm',code:'TP',note:''},
+  {id:8,name:'Tổ cắt',code:'CAT',note:''},
+  {id:9,name:'Cơ điện',code:'CD',note:''},
+  {id:10,name:'XN1',code:'XN1',note:''},
+  {id:11,name:'XN2',code:'XN2',note:''},
+  {id:12,name:'XN3',code:'XN3',note:''}
 ];
 
-const categories = [
-  'Bàn ghế','Tủ kệ','Máy móc văn phòng','Thiết bị sản xuất',
-  'Dụng cụ đo lường','Dụng cụ vệ sinh','Bảo hộ lao động',
-  'Khuôn/mẫu/phụ kiện','Công cụ sửa chữa','Khác'
+const defaultToolCategories = [
+  'Bàn ghế',
+  'Tủ kệ',
+  'Thiết bị văn phòng',
+  'Thiết bị IT',
+  'Máy móc / dụng cụ sản xuất',
+  'Dụng cụ sửa chữa / cơ điện',
+  'Dụng cụ đo lường',
+  'Bảo hộ lao động',
+  'Dụng cụ vệ sinh / nhà ăn',
+  'Khác'
 ];
 
-const assetCategories = [
+const defaultAssetCategories = [
   'Nhà cửa / vật kiến trúc',
   'Máy móc thiết bị',
   'Phương tiện vận tải',
   'Thiết bị văn phòng',
   'Tài sản IT',
   'Tài sản khác'
+];
+
+let departments = defaultDepartments.map(x => ({...x}));
+let categories = [...defaultToolCategories];
+let assetCategories = [...defaultAssetCategories];
+let masterCategories = [
+  ...defaultAssetCategories.map((name, idx) => ({id:'local-asset-' + idx, type:'asset', name, sort_order:idx + 1, note:''})),
+  ...defaultToolCategories.map((name, idx) => ({id:'local-tool-' + idx, type:'tool', name, sort_order:idx + 1, note:''}))
 ];
 
 const statuses = [
@@ -132,42 +147,80 @@ function fillSelect(id, arr, getVal=x=>x, getText=x=>x, first=''){
 }
 
 
+
 function uniqueClean(arr){
-  const map = new Map();
-
-  arr.forEach(x => {
-    const value = cleanExcelText(x);
-    if(!value) return;
-
-    const key = norm(value);
-    if(!map.has(key)){
-      map.set(key, value);
-    }
-  });
-
-  return [...map.values()].sort((a,b) => a.localeCompare(b, 'vi'));
+  return [...new Set(
+    arr
+      .map(x => String(x || '').trim())
+      .filter(Boolean)
+  )].sort((a,b) => a.localeCompare(b, 'vi'));
 }
 
-function getDataDepartmentNames(){
-  return uniqueClean([
-    ...departments.map(d => d.name),
-    ...assets.map(assetDept),
-    ...tools.map(toolDept)
-  ]);
+function getDepartmentNames(){
+  return uniqueClean(departments.map(d => d.name));
 }
 
-function getDataToolCategories(){
-  return uniqueClean([
-    ...categories,
-    ...tools.map(toolCategory)
-  ]);
+function sortMasters(){
+  masterCategories = masterCategories
+    .filter(x => x && x.type && x.name)
+    .sort((a,b) =>
+      String(a.type).localeCompare(String(b.type)) ||
+      Number(a.sort_order || 0) - Number(b.sort_order || 0) ||
+      String(a.name).localeCompare(String(b.name), 'vi')
+    );
+
+  departments = departments
+    .filter(x => x && x.name)
+    .sort((a,b) => String(a.name).localeCompare(String(b.name), 'vi'));
 }
 
-function getDataAssetCategories(){
-  return uniqueClean([
-    ...assetCategories,
-    ...assets.map(assetCategory)
-  ]);
+function syncMasterArrays(){
+  sortMasters();
+
+  categories = uniqueClean(
+    masterCategories
+      .filter(x => x.type === 'tool')
+      .map(x => x.name)
+  );
+
+  assetCategories = uniqueClean(
+    masterCategories
+      .filter(x => x.type === 'asset')
+      .map(x => x.name)
+  );
+
+  if(!categories.length) categories = [...defaultToolCategories];
+  if(!assetCategories.length) assetCategories = [...defaultAssetCategories];
+
+  if(!categories.some(x => norm(x) === norm('Khác'))) categories.push('Khác');
+  if(!assetCategories.some(x => norm(x) === norm('Tài sản khác'))) assetCategories.push('Tài sản khác');
+}
+
+function applyMasterData(categoryRows, departmentRows){
+  if(Array.isArray(categoryRows) && categoryRows.length){
+    masterCategories = categoryRows
+      .filter(x => x && x.type && x.name)
+      .map(x => ({
+        id:x.id,
+        type:x.type,
+        name:String(x.name || '').trim(),
+        sort_order:Number(x.sort_order || 0),
+        note:x.note || ''
+      }));
+  }
+
+  if(Array.isArray(departmentRows) && departmentRows.length){
+    departments = departmentRows
+      .filter(x => x && x.name)
+      .map(x => ({
+        id:x.id,
+        name:String(x.name || '').trim(),
+        code:x.code || '',
+        note:x.note || ''
+      }));
+  }
+
+  syncMasterArrays();
 }
 
 function setSelectOptionsKeepValue(id, values, firstText){
@@ -185,29 +238,27 @@ function setSelectOptionsKeepValue(id, values, firstText){
     el.appendChild(op);
   });
 
-  const found = cleaned.find(v => norm(v) === norm(old));
-  el.value = found || '';
+  el.value = cleaned.some(v => norm(v) === norm(old)) ? old : '';
+}
+
+function fillSelectKeepValue(id, arr, getVal=x=>x, getText=x=>x, first=''){
+  const el = $(id);
+  if(!el) return;
+
+  const old = el.value;
+  fillSelect(id, arr, getVal, getText, first);
+
+  const values = [...el.options].map(op => op.value);
+  el.value = values.includes(old) ? old : '';
 }
 
 function refreshListFilters(){
-  setSelectOptionsKeepValue(
-    'filterAssetCategory',
-    getDataAssetCategories(),
-    'Tất cả nhóm tài sản'
-  );
+  setSelectOptionsKeepValue('filterAssetCategory', assetCategories, 'Tất cả nhóm tài sản');
+  setSelectOptionsKeepValue('filterAssetDept', getDepartmentNames(), 'Tất cả bộ phận');
+  setSelectOptionsKeepValue('filterCategory', categories, 'Tất cả nhóm');
+  setSelectOptionsKeepValue('filterDept', getDepartmentNames(), 'Tất cả bộ phận');
 
-  setSelectOptionsKeepValue(
-    'filterAssetDept',
-    getDataDepartmentNames(),
-    'Tất cả bộ phận'
-  );
-
-  setSelectOptionsKeepValue(
-    'filterStatus',
-    statuses.map(s => s.value),
-    'Tất cả trạng thái'
-  );
-
+  setSelectOptionsKeepValue('filterStatus', statuses.map(s => s.value), 'Tất cả trạng thái');
   const fs = $('filterStatus');
   if(fs){
     [...fs.options].forEach(op => {
@@ -216,12 +267,7 @@ function refreshListFilters(){
     });
   }
 
-  setSelectOptionsKeepValue(
-    'filterAssetStatus',
-    statuses.map(s => s.value),
-    'Tất cả trạng thái'
-  );
-
+  setSelectOptionsKeepValue('filterAssetStatus', statuses.map(s => s.value), 'Tất cả trạng thái');
   const fas = $('filterAssetStatus');
   if(fas){
     [...fas.options].forEach(op => {
@@ -229,24 +275,144 @@ function refreshListFilters(){
       if(st) op.textContent = st.label;
     });
   }
+}
 
-  setSelectOptionsKeepValue(
-    'filterCategory',
-    getDataToolCategories(),
-    'Tất cả nhóm'
-  );
+function refreshMasterSelects(){
+  syncMasterArrays();
 
-  setSelectOptionsKeepValue(
-    'filterDept',
-    getDataDepartmentNames(),
-    'Tất cả bộ phận'
-  );
+  fillSelectKeepValue('faCategory', assetCategories);
+  fillSelectKeepValue('fCategory', categories);
+
+  fillSelectKeepValue('faDept', departments, d=>d.name, d=>d.name);
+  fillSelectKeepValue('fDept', departments, d=>d.name, d=>d.name);
+  fillSelectKeepValue('aDept', departments, d=>d.name, d=>d.name);
+
+  refreshListFilters();
+  refreshToolOptions();
 }
 
 function clearListFilters(){
   ['filterAssetCategory','filterAssetDept','filterAssetStatus','filterCategory','filterDept','filterStatus'].forEach(id => {
     if($(id)) $(id).value = '';
   });
+}
+
+function clearAssetFilters(){
+  if($('assetSearch')) $('assetSearch').value = '';
+  ['filterAssetCategory','filterAssetDept','filterAssetStatus'].forEach(id => { if($(id)) $(id).value = ''; });
+  assetPage = 1;
+  renderAssets();
+}
+
+function clearToolFilters(){
+  if($('toolSearch')) $('toolSearch').value = '';
+  ['filterCategory','filterDept','filterStatus'].forEach(id => { if($(id)) $(id).value = ''; });
+  toolPage = 1;
+  renderTools();
+}
+
+function findMasterName(list, target){
+  return list.find(x => norm(x) === norm(target)) || '';
+}
+
+function normalizeCategoryByMaster(type, rawValue){
+  const fallback = type === 'asset' ? 'Tài sản khác' : 'Khác';
+  const list = type === 'asset' ? assetCategories : categories;
+  const raw = cleanExcelText ? cleanExcelText(rawValue) : String(rawValue || '').trim();
+
+  if(!raw) return fallback;
+
+  const exact = findMasterName(list, raw);
+  if(exact) return exact;
+
+  const k = norm(raw);
+
+  if(type === 'tool'){
+    const pick = name => findMasterName(list, name) || fallback;
+
+    if(k.includes('ban') || k.includes('ghe') || k.includes('sofa')){
+      return pick('Bàn ghế');
+    }
+
+    if(k.includes('tu') || k.includes('ke') || k.includes('ho so')){
+      return pick('Tủ kệ');
+    }
+
+    if(k.includes('may tinh') || k.includes('laptop') || k.includes('pc') || k.includes('server') || k.includes('switch') || k.includes('router') || k.includes('camera')){
+      return pick('Thiết bị IT');
+    }
+
+    if(k.includes('may in') || k.includes('may photocopy') || k.includes('tivi') || k.includes('dien thoai') || k.includes('quat') || k.includes('may lanh') || k.includes('dieu hoa')){
+      return pick('Thiết bị văn phòng');
+    }
+
+    if(k.includes('may') || k.includes('khuon') || k.includes('mau') || k.includes('thiet bi san xuat')){
+      return pick('Máy móc / dụng cụ sản xuất');
+    }
+
+    if(k.includes('thuoc') || k.includes('can') || k.includes('do luong') || k.includes('dong ho')){
+      return pick('Dụng cụ đo lường');
+    }
+
+    if(k.includes('bao ho')){
+      return pick('Bảo hộ lao động');
+    }
+
+    if(k.includes('ve sinh') || k.includes('nha an')){
+      return pick('Dụng cụ vệ sinh / nhà ăn');
+    }
+
+    if(k.includes('sua chua') || k.includes('co dien') || k.includes('dung cu')){
+      return pick('Dụng cụ sửa chữa / cơ điện');
+    }
+  }
+
+  if(type === 'asset'){
+    const pick = name => findMasterName(list, name) || fallback;
+
+    if(k.includes('nha') || k.includes('vat kien truc') || k.includes('xuong')) return pick('Nhà cửa / vật kiến trúc');
+    if(k.includes('may') || k.includes('thiet bi')) return pick('Máy móc thiết bị');
+    if(k.includes('xe') || k.includes('phuong tien')) return pick('Phương tiện vận tải');
+    if(k.includes('van phong')) return pick('Thiết bị văn phòng');
+    if(k.includes('it') || k.includes('may tinh') || k.includes('server')) return pick('Tài sản IT');
+  }
+
+  return fallback;
+}
+
+function normalizeDepartmentByMaster(rawValue){
+  const raw = cleanExcelText ? cleanExcelText(rawValue) : String(rawValue || '').trim();
+  if(!raw) return '';
+
+  const found = departments.find(d => norm(d.name) === norm(raw));
+  return found ? found.name : raw;
+}
+
+async function ensureDepartmentFromImport(rawValue){
+  const name = normalizeDepartmentByMaster(rawValue);
+  if(!name) return '';
+
+  const existed = departments.find(d => norm(d.name) === norm(name));
+  if(existed) return existed.name;
+
+  const payload = {
+    name,
+    code: '',
+    note: 'Tự thêm khi import Excel'
+  };
+
+  if(!CURRENT_API_BASE){
+    departments.push({id:'local-import-' + Date.now() + '-' + departments.length, ...payload});
+    syncMasterArrays();
+    saveLocal();
+    return name;
+  }
+
+  const ok = await saveRemote('/api/departments', payload, 'POST', false);
+  departments.push({id:'import-' + Date.now() + '-' + departments.length, ...payload});
+  syncMasterArrays();
+
+  return name;
 }
 
 function deptIdByName(name){
@@ -549,23 +715,9 @@ function init(){
 
   fillSelect('dashStatus', statuses, s=>s.value, s=>s.label, 'Tất cả trạng thái');
 
-  fillSelect('filterAssetCategory', assetCategories, x=>x, x=>x, 'Tất cả nhóm tài sản');
-  fillSelect('filterAssetDept', departments, d=>d.name, d=>d.name, 'Tất cả bộ phận');
-  fillSelect('filterAssetStatus', statuses, s=>s.value, s=>s.label, 'Tất cả trạng thái');
-
-  fillSelect('filterStatus', statuses, s=>s.value, s=>s.label, 'Tất cả trạng thái');
-  fillSelect('filterCategory', categories, x=>x, x=>x, 'Tất cả nhóm');
-  fillSelect('filterDept', departments, d=>d.name, d=>d.name, 'Tất cả bộ phận');
-
-  fillSelect('faCategory', assetCategories);
-  fillSelect('faDept', departments, d=>d.name, d=>d.name);
   fillSelect('faStatus', statuses, s=>s.value, s=>s.label);
-
-  fillSelect('fCategory', categories);
-  fillSelect('fDept', departments, d=>d.name, d=>d.name);
   fillSelect('fStatus', statuses, s=>s.value, s=>s.label);
-
-  fillSelect('aDept', departments, d=>d.name, d=>d.name);
+  refreshMasterSelects();
 
   fillYearSelect();
   fillReportYearSelect();
@@ -606,11 +758,13 @@ async function loadRemote(){
       Authorization:'Bearer ' + CCDC_TOKEN
     };
 
-    const [as, t, a, i] = await Promise.all([
+    const [as, t, a, i, c, dpt] = await Promise.all([
       fetch(CURRENT_API_BASE + '/api/assets', {headers}),
       fetch(CURRENT_API_BASE + '/api/tools', {headers}),
       fetch(CURRENT_API_BASE + '/api/assignments', {headers}),
-      fetch(CURRENT_API_BASE + '/api/inventories', {headers})
+      fetch(CURRENT_API_BASE + '/api/inventories', {headers}),
+      fetch(CURRENT_API_BASE + '/api/categories', {headers}),
+      fetch(CURRENT_API_BASE + '/api/departments', {headers})
     ]);
 
     if(as.status === 401 || t.status === 401){
@@ -640,6 +794,21 @@ async function loadRemote(){
       inventories = Array.isArray(d) ? d : (d.inventories || []);
     }
 
+    let remoteCategories = null;
+    let remoteDepartments = null;
+
+    if(c && c.ok){
+      const d = await c.json();
+      remoteCategories = Array.isArray(d) ? d : (d.categories || []);
+    }
+
+    if(dpt && dpt.ok){
+      const d = await dpt.json();
+      remoteDepartments = Array.isArray(d) ? d : (d.departments || []);
+    }
+
+    applyMasterData(remoteCategories, remoteDepartments);
+
   }catch(e){
     loadLocal();
     showToast('Không kết nối được API, đang dùng dữ liệu local', 'warn', 'API');
@@ -651,6 +820,10 @@ function loadLocal(){
   tools = JSON.parse(localStorage.getItem('CCDC_TOOLS') || '[]');
   assignments = JSON.parse(localStorage.getItem('CCDC_ASSIGNMENTS') || '[]');
   inventories = JSON.parse(localStorage.getItem('CCDC_INVENTORIES') || '[]');
+
+  const localCats = JSON.parse(localStorage.getItem('CCDC_MASTER_CATEGORIES') || '[]');
+  const localDepts = JSON.parse(localStorage.getItem('CCDC_MASTER_DEPARTMENTS') || '[]');
+  applyMasterData(localCats.length ? localCats : null, localDepts.length ? localDepts : null);
 }
 
 function saveLocal(){
@@ -658,6 +831,8 @@ function saveLocal(){
   localStorage.setItem('CCDC_TOOLS', JSON.stringify(tools));
   localStorage.setItem('CCDC_ASSIGNMENTS', JSON.stringify(assignments));
   localStorage.setItem('CCDC_INVENTORIES', JSON.stringify(inventories));
+  localStorage.setItem('CCDC_MASTER_CATEGORIES', JSON.stringify(masterCategories));
+  localStorage.setItem('CCDC_MASTER_DEPARTMENTS', JSON.stringify(departments));
 }
 
 async function saveRemote(path, payload, method, reload=true){
@@ -718,7 +893,8 @@ async function saveRemote(path, payload, method, reload=true){
    RENDER
 ======================= */
 function renderAll(){
-  refreshListFilters();
+  refreshMasterSelects();
+  renderMasters();
   renderKpi();
   renderDashboardTable();
   renderWarnings();
@@ -1416,6 +1592,179 @@ async function deleteInventory(id){
   renderAll();
 }
 
+
+/* =======================
+   MASTER DATA: NHÓM + PHÒNG BAN
+======================= */
+function masterCategoryRows(type){
+  return masterCategories
+    .filter(x => x.type === type)
+    .sort((a,b) => Number(a.sort_order || 0) - Number(b.sort_order || 0) || String(a.name).localeCompare(String(b.name), 'vi'));
+}
+
+function renderMasters(){
+  if(!$('masterToolCategoryRows')) return;
+
+  $('masterToolCategoryRows').innerHTML = masterCategoryRows('tool').map(x => `
+    <tr>
+      <td><b>${x.name}</b></td>
+      <td>${x.note || ''}</td>
+      <td><button class="btn danger" onclick="deleteMasterCategory(${JSON.stringify(x.id)})">Xóa</button></td>
+    </tr>
+  `).join('') || '<tr><td colspan="3">Chưa có nhóm CCDC</td></tr>';
+
+  $('masterAssetCategoryRows').innerHTML = masterCategoryRows('asset').map(x => `
+    <tr>
+      <td><b>${x.name}</b></td>
+      <td>${x.note || ''}</td>
+      <td><button class="btn danger" onclick="deleteMasterCategory(${JSON.stringify(x.id)})">Xóa</button></td>
+    </tr>
+  `).join('') || '<tr><td colspan="3">Chưa có nhóm tài sản</td></tr>';
+
+  $('masterDeptRows').innerHTML = departments.map(x => `
+    <tr>
+      <td><b>${x.name}</b></td>
+      <td>${x.code || ''}</td>
+      <td>${x.note || ''}</td>
+      <td><button class="btn danger" onclick="deleteDepartment(${JSON.stringify(x.id)})">Xóa</button></td>
+    </tr>
+  `).join('') || '<tr><td colspan="4">Chưa có phòng ban</td></tr>';
+}
+
+function masterCategoryExists(type, name){
+  return masterCategories.some(x => x.type === type && norm(x.name) === norm(name));
+}
+
+async function addMasterCategory(type){
+  const nameId = type === 'tool' ? 'newToolCategoryName' : 'newAssetCategoryName';
+  const noteId = type === 'tool' ? 'newToolCategoryNote' : 'newAssetCategoryNote';
+  const name = String($(nameId)?.value || '').trim();
+  const note = String($(noteId)?.value || '').trim();
+
+  if(!name){
+    showToast('Nhập tên nhóm trước khi thêm', 'warn', 'Danh mục');
+    return;
+  }
+
+  if(masterCategoryExists(type, name)){
+    showToast('Nhóm này đã tồn tại', 'warn', 'Trùng danh mục');
+    return;
+  }
+
+  const sort_order = masterCategoryRows(type).length + 1;
+  const payload = {type, name, sort_order, note};
+
+  if(!CURRENT_API_BASE){
+    masterCategories.push({id:'local-' + Date.now(), ...payload});
+    syncMasterArrays();
+    saveLocal();
+    renderAll();
+    $(nameId).value = '';
+    if($(noteId)) $(noteId).value = '';
+    return;
+  }
+
+  const ok = await saveRemote('/api/categories', payload, 'POST', false);
+  if(!ok) return;
+
+  $(nameId).value = '';
+  if($(noteId)) $(noteId).value = '';
+  await loadRemote();
+  renderAll();
+  showToast('Đã thêm nhóm danh mục', 'success', 'Danh mục');
+}
+
+async function deleteMasterCategory(id){
+  const item = masterCategories.find(x => String(x.id) === String(id));
+  if(!item) return;
+
+  const okConfirm = await showConfirm(
+    `Xóa nhóm "${item.name}"? Dữ liệu đã nhập trước đó không bị xóa, chỉ xóa khỏi danh mục chọn.`,
+    'Xóa nhóm danh mục'
+  );
+  if(!okConfirm) return;
+
+  if(!CURRENT_API_BASE){
+    masterCategories = masterCategories.filter(x => String(x.id) !== String(id));
+    syncMasterArrays();
+    saveLocal();
+    renderAll();
+    return;
+  }
+
+  const ok = await saveRemote('/api/categories/' + id, null, 'DELETE', false);
+  if(!ok) return;
+
+  await loadRemote();
+  renderAll();
+  showToast('Đã xóa nhóm danh mục', 'success', 'Danh mục');
+}
+
+function departmentExists(name){
+  return departments.some(x => norm(x.name) === norm(name));
+}
+
+async function addDepartment(){
+  const name = String($('newDeptName')?.value || '').trim();
+  const code = String($('newDeptCode')?.value || '').trim();
+  const note = String($('newDeptNote')?.value || '').trim();
+
+  if(!name){
+    showToast('Nhập tên phòng ban / đơn vị sử dụng', 'warn', 'Danh mục');
+    return;
+  }
+
+  if(departmentExists(name)){
+    showToast('Phòng ban này đã tồn tại', 'warn', 'Trùng danh mục');
+    return;
+  }
+
+  const payload = {name, code, note};
+
+  if(!CURRENT_API_BASE){
+    departments.push({id:'local-' + Date.now(), ...payload});
+    syncMasterArrays();
+    saveLocal();
+    renderAll();
+    ['newDeptName','newDeptCode','newDeptNote'].forEach(id => { if($(id)) $(id).value = ''; });
+    return;
+  }
+
+  const ok = await saveRemote('/api/departments', payload, 'POST', false);
+  if(!ok) return;
+
+  ['newDeptName','newDeptCode','newDeptNote'].forEach(id => { if($(id)) $(id).value = ''; });
+  await loadRemote();
+  renderAll();
+  showToast('Đã thêm phòng ban', 'success', 'Danh mục');
+}
+
+async function deleteDepartment(id){
+  const item = departments.find(x => String(x.id) === String(id));
+  if(!item) return;
+
+  const okConfirm = await showConfirm(
+    `Xóa phòng ban "${item.name}"? Dữ liệu đã nhập trước đó không bị xóa, chỉ xóa khỏi danh mục chọn.`,
+    'Xóa phòng ban'
+  );
+  if(!okConfirm) return;
+
+  if(!CURRENT_API_BASE){
+    departments = departments.filter(x => String(x.id) !== String(id));
+    syncMasterArrays();
+    saveLocal();
+    renderAll();
+    return;
+  }
+
+  const ok = await saveRemote('/api/departments/' + id, null, 'DELETE', false);
+  if(!ok) return;
+
+  await loadRemote();
+  renderAll();
+  showToast('Đã xóa phòng ban', 'success', 'Danh mục');
+}
+
 /* =======================
    VIEW / REPORT
 ======================= */
@@ -1432,6 +1781,7 @@ function setView(id){
     assets:['Danh sách tài sản','Quản lý tài sản cố định / tài sản kế toán.'],
     tools:['Danh sách CCDC','Quản lý chi tiết từng công cụ, dụng cụ.'],
     departments:['Bộ phận sử dụng','Cơ cấu phòng ban để gắn tài sản và CCDC.'],
+    masters:['Danh mục dùng chung','Tự thêm / xóa nhóm CCDC, nhóm tài sản và phòng ban sử dụng.'],
     assignments:['Cấp phát / Thu hồi','Lịch sử bàn giao tài sản, công cụ, dụng cụ.'],
     inventories:['Kiểm kê','Ghi nhận kiểm kê tài sản, CCDC theo năm.'],
     reports:['Báo cáo','Báo cáo kiểm kê và xuất dữ liệu.'],
@@ -1450,12 +1800,9 @@ function toggleMenu(show){
 }
 
 function renderDept(){
-  const deptNames = getDataDepartmentNames();
-
-  $('deptGrid').innerHTML = deptNames.map(name => {
-    const d = departments.find(x => norm(x.name) === norm(name)) || {name, code:'', children:[]};
-    const assetList = assets.filter(a => norm(assetDept(a)) === norm(name));
-    const toolList = tools.filter(a => norm(toolDept(a)) === norm(name));
+  $('deptGrid').innerHTML = departments.map(d => {
+    const assetList = assets.filter(a => norm(assetDept(a)) === norm(d.name));
+    const toolList = tools.filter(a => norm(toolDept(a)) === norm(d.name));
 
     const value =
       assetList.reduce((s,a) => s + assetCost(a), 0) +
@@ -1463,9 +1810,9 @@ function renderDept(){
 
     return `
       <div class="dept">
-        <h4>${name}</h4>
+        <h4>${d.name}</h4>
         <p>Mã: ${d.code || '-'}</p>
-        <p>${d.children && d.children.length ? 'Nhóm: ' + d.children.join(', ') : 'Đơn vị sử dụng / phòng ban'}</p>
+        <p>${d.note || 'Đơn vị sử dụng / phòng ban'}</p>
         <div class="count">${assetList.length + toolList.length}</div>
         <p>${assetList.length} tài sản, ${toolList.length} CCDC - ${money(value)}</p>
       </div>
@@ -1474,13 +1821,13 @@ function renderDept(){
 }
 
 function renderReportByDept(){
-  const rows = getDataDepartmentNames().map(name => {
-    const assetList = assets.filter(a => norm(assetDept(a)) === norm(name));
-    const toolList = tools.filter(a => norm(toolDept(a)) === norm(name));
+  const rows = departments.map(d => {
+    const assetList = assets.filter(a => norm(assetDept(a)) === norm(d.name));
+    const toolList = tools.filter(a => norm(toolDept(a)) === norm(d.name));
     const list = [...assetList, ...toolList];
 
     return {
-      name,
+      name: d.name,
       total: list.length,
       use: list.filter(a => a.status === 'use').length,
       stock: list.filter(a => a.status === 'stock').length,
@@ -1697,33 +2044,20 @@ function exportExcel(){
   showToast('Đã xuất báo cáo Excel', 'success', 'Thành công');
 }
 
-function cleanExcelText(v){
-  return String(v ?? '')
-    .replace(/ /g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+function readCell(row, names, def=''){
+  for(const name of names){
+    if(row[name] !== undefined && row[name] !== null && cleanExcelText(row[name]) !== ''){
+      return row[name];
+    }
+  }
+  return def;
 }
 
-function toNumber(value, def=0){
-  if(value === null || value === undefined || value === '') return def;
-  if(typeof value === 'number') return Number.isFinite(value) ? value : def;
-
-  let s = cleanExcelText(value)
-    .replace(/đ|vnd/gi, '')
-    .replace(/\s+/g, '');
-
-  if(!s) return def;
-
-  // 1.234.567 hoặc 1,234,567
-  if(/^[-+]?\d{1,3}([.,]\d{3})+$/.test(s)){
-    s = s.replace(/[.,]/g, '');
-  }else{
-    // 1234,56 -> 1234.56
-    s = s.replace(',', '.');
-  }
-
-  const n = Number(s);
-  return Number.isFinite(n) ? n : def;
+function cleanExcelText(v){
+  return String(v ?? '')
+    .replace(/\u00A0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function sheetToObjectsByHeader(sheet, requiredHeader){
@@ -1763,35 +2097,22 @@ function sheetToObjectsByHeader(sheet, requiredHeader){
     );
 }
 
-function readCell(row, names, def=''){
-  for(const name of names){
-    if(row[name] !== undefined && row[name] !== null && cleanExcelText(row[name]) !== ''){
-      return row[name];
-    }
-  }
-
-  const rowKeys = Object.keys(row || {});
-  for(const name of names){
-    const foundKey = rowKeys.find(k => norm(k) === norm(name));
-    if(foundKey && row[foundKey] !== undefined && row[foundKey] !== null && cleanExcelText(row[foundKey]) !== ''){
-      return row[foundKey];
-    }
-  }
-
-  return def;
-}
-
 function normalizeImportStatus(value){
-  const key = norm(String(value || '').trim());
+  const key = norm(cleanExcelText(value));
 
   const map = {
     'dang dung':'use',
     'dang su dung':'use',
+    'su dung':'use',
     'trong kho':'stock',
+    'ton kho':'stock',
     'hong':'broken',
+    'hu':'broken',
     'mat':'lost',
     'mat / that lac':'lost',
+    'that lac':'lost',
     'cho thanh ly':'disposal',
+    'thanh ly':'disposed',
     'da thanh ly':'disposed',
     'use':'use',
     'stock':'stock',
@@ -1804,8 +2125,36 @@ function normalizeImportStatus(value){
   return map[key] || 'stock';
 }
 
+function excelNumber(value, def=0){
+  if(value === null || value === undefined || value === '') return def;
+  if(typeof value === 'number') return Number.isFinite(value) ? value : def;
+
+  let s = cleanExcelText(value)
+    .replace(/[đ₫]/gi, '')
+    .replace(/\s+/g, '');
+
+  if(!s) return def;
+
+  if(/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)){
+    s = s.replace(/\./g, '').replace(',', '.');
+  }else if(/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(s)){
+    s = s.replace(/,/g, '');
+  }
+
+  const n = Number(s);
+  return Number.isFinite(n) ? n : def;
+}
+
 function excelDateToISO(value){
   if(!value) return '';
+
+  if(value instanceof Date && !isNaN(value)){
+    return [
+      value.getFullYear(),
+      String(value.getMonth() + 1).padStart(2,'0'),
+      String(value.getDate()).padStart(2,'0')
+    ].join('-');
+  }
 
   if(typeof value === 'number'){
     const d = XLSX.SSF.parse_date_code(value);
@@ -1818,7 +2167,7 @@ function excelDateToISO(value){
     ].join('-');
   }
 
-  const s = String(value).trim();
+  const s = cleanExcelText(value);
 
   if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
 
@@ -1843,20 +2192,34 @@ async function importExcelMulti(event){
     showToast('Đang đọc file Excel...', 'info', 'Import');
 
     const wb = XLSX.read(await file.arrayBuffer(), {
-      type:'array',
-      cellDates:false
+      type: 'array',
+      cellDates: false
     });
 
-    const assetSheet = wb.Sheets['TaiSan'] || wb.Sheets['Tài sản'] || wb.Sheets['Tai San'] || wb.Sheets['Assets'];
-    const toolSheet = wb.Sheets['CCDC'] || wb.Sheets['CongCuDungCu'] || wb.Sheets['Công cụ dụng cụ'] || wb.Sheets['Tools'];
+    const assetSheet =
+      wb.Sheets['TaiSan'] ||
+      wb.Sheets['Tài sản'] ||
+      wb.Sheets['Tai San'] ||
+      wb.Sheets['Assets'];
+
+    const toolSheet =
+      wb.Sheets['CCDC'] ||
+      wb.Sheets['CongCuDungCu'] ||
+      wb.Sheets['Công cụ dụng cụ'] ||
+      wb.Sheets['Tools'];
 
     if(!assetSheet && !toolSheet){
       showToast('File Excel cần có sheet TaiSan và/hoặc CCDC', 'error', 'Sai mẫu import');
       return;
     }
 
-    let assetOk = 0, assetDup = 0, assetFail = 0;
-    let toolOk = 0, toolDup = 0, toolFail = 0;
+    let assetOk = 0;
+    let assetDup = 0;
+    let assetFail = 0;
+
+    let toolOk = 0;
+    let toolDup = 0;
+    let toolFail = 0;
 
     const assetCodes = new Set(assets.map(a => norm(assetCode(a))));
     const toolCodes = new Set(tools.map(a => norm(toolCode(a))));
@@ -1866,11 +2229,19 @@ async function importExcelMulti(event){
 
       for(const row of rows){
         const code = cleanExcelText(readCell(row, [
-          'Mã tài sản','Ma tai san','Mã TS','Ma TS','Asset Code'
+          'Mã tài sản',
+          'Ma tai san',
+          'Mã TS',
+          'Ma TS',
+          'Asset Code'
         ], ''));
 
         const name = cleanExcelText(readCell(row, [
-          'Tên tài sản','Ten tai san','Tên TS','Ten TS','Asset Name'
+          'Tên tài sản',
+          'Ten tai san',
+          'Tên TS',
+          'Ten TS',
+          'Asset Name'
         ], ''));
 
         if(!code && !name) continue;
@@ -1885,64 +2256,118 @@ async function importExcelMulti(event){
           continue;
         }
 
-        const dept = cleanExcelText(readCell(row, [
-          'Phòng ban','Phong ban','Bộ phận','Bo phan','Department'
-        ], ''));
+        const rawDept = readCell(row, [
+          'Bộ phận',
+          'Bo phan',
+          'Phòng ban',
+          'Phong ban',
+          'Department'
+        ], '');
 
-        const rawCategory = cleanExcelText(readCell(row, [
-          'Nhóm tài sản','Nhom tai san','Nhóm TS','Nhom TS','Loại tài sản','Loai tai san','Category'
-        ], 'Tài sản khác')) || 'Tài sản khác';
+        const dept = await ensureDepartmentFromImport(rawDept);
+
+        const rawCategory = readCell(row, [
+          'Nhóm tài sản',
+          'Nhom tai san',
+          'Nhóm TS',
+          'Nhom TS',
+          'Loại tài sản',
+          'Loai tai san',
+          'Category'
+        ], 'Tài sản khác');
 
         const payload = {
           asset_code: code,
+          category: normalizeCategoryByMaster('asset', rawCategory),
           asset_name: name,
-          category: rawCategory,
 
           specification: cleanExcelText(readCell(row, [
-            'Quy cách / Model','Quy cách','Quy cach','Model','Mô tả','Mo ta','Specification'
+            'Quy cách / Model',
+            'Quy cách',
+            'Quy cach',
+            'Model',
+            'Mô tả',
+            'Mo ta',
+            'Specification'
           ], '')),
 
           serial_number: cleanExcelText(readCell(row, [
-            'Serial','Số serial','So serial','Serial Number'
+            'Serial',
+            'Số serial',
+            'So serial',
+            'Serial Number'
           ], '')),
 
           unit: cleanExcelText(readCell(row, [
-            'Đơn vị tính','Don vi tinh','ĐVT','DVT','Unit'
+            'Đơn vị tính',
+            'Don vi tinh',
+            'ĐVT',
+            'DVT',
+            'Unit'
           ], 'Cái')) || 'Cái',
 
-          quantity: toNumber(readCell(row, [
-            'Số lượng','So luong','SL','Quantity'
-          ], 1), 1),
+          quantity: excelNumber(readCell(row, [
+            'Số lượng',
+            'So luong',
+            'SL',
+            'Quantity'
+          ], 1), 1) || 1,
 
           purchase_date: excelDateToISO(readCell(row, [
-            'Ngày mua','Ngay mua','Ngày ghi tăng','Ngay ghi tang','Purchase Date'
+            'Ngày mua',
+            'Ngay mua',
+            'Ngày ghi tăng',
+            'Ngay ghi tang',
+            'Purchase Date'
           ], '')),
 
-          original_cost: toNumber(readCell(row, [
-            'Nguyên giá','Nguyen gia','Đơn giá','Don gia','Giá trị','Gia tri','Original Cost'
+          original_cost: excelNumber(readCell(row, [
+            'Nguyên giá',
+            'Nguyen gia',
+            'Đơn giá',
+            'Don gia',
+            'Giá trị',
+            'Gia tri',
+            'Original Cost'
           ], 0), 0),
 
-          remaining_value: toNumber(readCell(row, [
-            'Giá trị còn lại','Gia tri con lai','Remaining Value'
+          remaining_value: excelNumber(readCell(row, [
+            'Giá trị còn lại',
+            'Gia tri con lai',
+            'Remaining Value'
           ], 0), 0),
 
           department_id: deptIdByName(dept),
           department_name: dept,
 
           custodian: cleanExcelText(readCell(row, [
-            'Người quản lý','Nguoi quan ly','Người dùng','Nguoi dung','Người nhận','Nguoi nhan','Custodian'
+            'Người quản lý',
+            'Nguoi quan ly',
+            'Người dùng',
+            'Nguoi dung',
+            'Người nhận',
+            'Nguoi nhan',
+            'Custodian'
           ], '')),
 
           location: cleanExcelText(readCell(row, [
-            'Vị trí','Vi tri','Nơi sử dụng','Noi su dung','Location'
+            'Vị trí',
+            'Vi tri',
+            'Nơi sử dụng',
+            'Noi su dung',
+            'Location'
           ], '')),
 
           status: normalizeImportStatus(readCell(row, [
-            'Trạng thái','Trang thai','Status'
+            'Trạng thái',
+            'Trang thai',
+            'Status'
           ], 'stock')),
 
           note: cleanExcelText(readCell(row, [
-            'Ghi chú','Ghi chu','Note'
+            'Ghi chú',
+            'Ghi chu',
+            'Note'
           ], ''))
         };
 
@@ -1962,11 +2387,19 @@ async function importExcelMulti(event){
 
       for(const row of rows){
         const code = cleanExcelText(readCell(row, [
-          'Mã CCDC','Ma CCDC','Mã công cụ dụng cụ','Ma cong cu dung cu','Tool Code'
+          'Mã CCDC',
+          'Ma CCDC',
+          'Mã công cụ dụng cụ',
+          'Ma cong cu dung cu',
+          'Tool Code'
         ], ''));
 
         const name = cleanExcelText(readCell(row, [
-          'Tên CCDC','Ten CCDC','Tên công cụ dụng cụ','Ten cong cu dung cu','Tool Name'
+          'Tên CCDC',
+          'Ten CCDC',
+          'Tên công cụ dụng cụ',
+          'Ten cong cu dung cu',
+          'Tool Name'
         ], ''));
 
         if(!code && !name) continue;
@@ -1981,64 +2414,118 @@ async function importExcelMulti(event){
           continue;
         }
 
-        const dept = cleanExcelText(readCell(row, [
-          'Phòng ban','Phong ban','Bộ phận','Bo phan','Department'
-        ], ''));
+        const rawDept = readCell(row, [
+          'Bộ phận',
+          'Bo phan',
+          'Phòng ban',
+          'Phong ban',
+          'Department'
+        ], '');
 
-        const rawCategory = cleanExcelText(readCell(row, [
-          'Nhóm CCDC','Nhom CCDC','Nhóm','Nhom','Loại','Loai','Category'
-        ], 'Khác')) || 'Khác';
+        const dept = await ensureDepartmentFromImport(rawDept);
+
+        const rawCategory = readCell(row, [
+          'Nhóm CCDC',
+          'Nhom CCDC',
+          'Nhóm',
+          'Nhom',
+          'Loại',
+          'Loai',
+          'Category'
+        ], 'Khác');
 
         const payload = {
           tool_code: code,
+          category: normalizeCategoryByMaster('tool', rawCategory),
           tool_name: name,
-          category: rawCategory,
 
           specification: cleanExcelText(readCell(row, [
-            'Quy cách / Model','Quy cách','Quy cach','Model','Mô tả','Mo ta','Specification'
+            'Quy cách / Model',
+            'Quy cách',
+            'Quy cach',
+            'Model',
+            'Mô tả',
+            'Mo ta',
+            'Specification'
           ], '')),
 
           serial_number: cleanExcelText(readCell(row, [
-            'Serial','Số serial','So serial','Serial Number'
+            'Serial',
+            'Số serial',
+            'So serial',
+            'Serial Number'
           ], '')),
 
           unit: cleanExcelText(readCell(row, [
-            'Đơn vị tính','Don vi tinh','ĐVT','DVT','Unit'
+            'Đơn vị tính',
+            'Don vi tinh',
+            'ĐVT',
+            'DVT',
+            'Unit'
           ], 'Cái')) || 'Cái',
 
-          quantity: toNumber(readCell(row, [
-            'Số lượng','So luong','SL','Quantity'
-          ], 1), 1),
+          quantity: excelNumber(readCell(row, [
+            'Số lượng',
+            'So luong',
+            'SL',
+            'Quantity'
+          ], 1), 1) || 1,
 
           purchase_date: excelDateToISO(readCell(row, [
-            'Ngày mua','Ngay mua','Ngày ghi tăng','Ngay ghi tang','Purchase Date'
+            'Ngày mua',
+            'Ngay mua',
+            'Ngày ghi tăng',
+            'Ngay ghi tang',
+            'Purchase Date'
           ], '')),
 
-          original_cost: toNumber(readCell(row, [
-            'Nguyên giá','Nguyen gia','Đơn giá','Don gia','Giá trị','Gia tri','Original Cost'
+          original_cost: excelNumber(readCell(row, [
+            'Nguyên giá',
+            'Nguyen gia',
+            'Đơn giá',
+            'Don gia',
+            'Giá trị',
+            'Gia tri',
+            'Original Cost'
           ], 0), 0),
 
-          remaining_value: toNumber(readCell(row, [
-            'Giá trị còn lại','Gia tri con lai','Remaining Value'
+          remaining_value: excelNumber(readCell(row, [
+            'Giá trị còn lại',
+            'Gia tri con lai',
+            'Remaining Value'
           ], 0), 0),
 
           department_id: deptIdByName(dept),
           department_name: dept,
 
           custodian: cleanExcelText(readCell(row, [
-            'Người quản lý','Nguoi quan ly','Người dùng','Nguoi dung','Người nhận','Nguoi nhan','Custodian'
+            'Người quản lý',
+            'Nguoi quan ly',
+            'Người dùng',
+            'Nguoi dung',
+            'Người nhận',
+            'Nguoi nhan',
+            'Custodian'
           ], '')),
 
           location: cleanExcelText(readCell(row, [
-            'Vị trí','Vi tri','Nơi sử dụng','Noi su dung','Location'
+            'Vị trí',
+            'Vi tri',
+            'Nơi sử dụng',
+            'Noi su dung',
+            'Location'
           ], '')),
 
           status: normalizeImportStatus(readCell(row, [
-            'Trạng thái','Trang thai','Status'
+            'Trạng thái',
+            'Trang thai',
+            'Status'
           ], 'stock')),
 
           note: cleanExcelText(readCell(row, [
-            'Ghi chú','Ghi chu','Note'
+            'Ghi chú',
+            'Ghi chu',
+            'Note'
           ], ''))
         };
 
@@ -2053,10 +2540,11 @@ async function importExcelMulti(event){
       }
     }
 
-    await loadRemote();
     clearListFilters();
     assetPage = 1;
     toolPage = 1;
+
+    await loadRemote();
     renderAll();
 
     showToast(
@@ -2113,9 +2601,9 @@ function renderDeptChart(){
   const el = $('chartDept');
   if(!el) return;
 
-  const rows = getDataDepartmentNames().map(name => {
-    const count = getAllItems().filter(a => norm(a.dept) === norm(name)).length;
-    return {name, count};
+  const rows = departments.map(d => {
+    const count = getAllItems().filter(a => norm(a.dept) === norm(d.name)).length;
+    return {name:d.name, count};
   }).filter(x => x.count > 0).sort((a,b) => b.count - a.count).slice(0,10);
 
   destroyChart(chartDeptObj);
