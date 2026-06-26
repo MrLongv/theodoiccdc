@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Quản lý Tài sản + Công cụ dụng cụ Kế toán - Việt Hồng</title>
-  <link rel="stylesheet" href="style.css?v=grouped1">
+  <link rel="stylesheet" href="style.css?v=invsearch1">
 </head>
 <body>
   <div id="loginScreen" class="login-screen">
@@ -420,8 +420,16 @@
     <div class="modal-body"><div class="form-grid">
       <div class="form-group"><label>Năm kiểm kê</label><select id="iYear"></select></div>
       <div class="form-group"><label>Ngày kiểm kê</label><input id="iDate" type="date"></div>
-      <div class="form-group"><label>Tài sản / CCDC</label><input id="iToolSearch" class="field" placeholder="Tìm mã, tên CCDC..." oninput="refreshToolOptions()"></div>
-      <div class="form-group"><label>Tài sản / CCDC</label><select id="iTool" onchange="syncBookQty()"></select></div>
+      <div class="form-group full inv-picker">
+        <label>Tìm nhanh tài sản / CCDC</label>
+        <div class="inventory-search-row">
+          <input id="iToolSearch" class="field" placeholder="Gõ mã, tên, bộ phận... VD: 0268 hoặc ghế nhân viên" oninput="searchInventoryItems()" onfocus="searchInventoryItems()">
+          <button class="btn ghost inv-clear-btn" type="button" onclick="clearInventoryPick()">Xóa</button>
+        </div>
+        <input type="hidden" id="iTool">
+        <div id="iToolSelected" class="selected-item-note">Chưa chọn tài sản / CCDC</div>
+        <div id="iToolResults" class="inventory-results"></div>
+      </div>
       <div class="form-group"><label>SL sổ sách</label><input id="iBookQty" type="number" value="0"></div>
       <div class="form-group"><label>SL thực tế</label><input id="iActualQty" type="number" value="0"></div>
       <div class="form-group"><label>Tình trạng</label><select id="iCondition"><option>Tốt</option><option>Đang dùng bình thường</option><option>Hỏng</option><option>Mất</option><option>Thiếu</option><option>Chờ thanh lý</option></select></div>
@@ -437,6 +445,6 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="config.js"></script>
-  <script src="app.js?v=grouped1"></script>
+  <script src="app.js?v=invsearch1"></script>
 </body>
 </html>
