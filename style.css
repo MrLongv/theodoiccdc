@@ -1036,13 +1036,15 @@ tbody tr:last-child td{
   position:relative;
 }
 
-.inventory-search-row{
+.inventory-search-row,
+.inventory-select-row{
   display:flex;
   gap:8px;
   align-items:center;
 }
 
-.inventory-search-row .field{
+.inventory-search-row .field,
+.inventory-select-row .field{
   width:100%;
   flex:1;
 }
@@ -1132,7 +1134,8 @@ tbody tr:last-child td{
 }
 
 @media(max-width:760px){
-  .inventory-search-row{
+  .inventory-search-row,
+  .inventory-select-row{
     flex-direction:column;
     align-items:stretch;
   }
@@ -1142,7 +1145,10 @@ tbody tr:last-child td{
     gap:4px;
   }
 }
+
+
+/* HIDE API CONFIG FROM NORMAL USERS */
 .nav button[data-view="settings"],
-#settings {
-  display: none !important;
+#settings{
+  display:none !important;
 }
