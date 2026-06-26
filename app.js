@@ -97,6 +97,15 @@ const money = n => Number(n || 0).toLocaleString('vi-VN') + ' đ';
 const statusLabel = v => (statuses.find(s => s.value === v) || {}).label || v || '';
 const statusClass = v => v || 'stock';
 
+function escHtml(value){
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function showToast(message, type='success', title='Thông báo'){
   const box = $('toastBox');
   if(!box) return;
@@ -1447,44 +1456,177 @@ async function deleteTool(id){
 
 function closeModal(id){
   $(id).classList.remove('show');
+
+  if(id === 'inventoryModal'){
+    const box = $('iToolResults');
+    if(box){
+      box.classList.remove('show');
+      box.innerHTML = '';
+    }
+  }
 }
 
 /* =======================
    ASSIGNMENTS / INVENTORY
 ======================= */
+function makeItemValue(item){
+  return `${item.item_type}|${item.id}`;
+}
+
+function itemSearchText(item){
+  return [
+    item.code,
+    item.name,
+    item.category,
+    item.dept,
+    item.custodian,
+    item.location,
+    item.item_type,
+    itemTypeLabel(item.item_type)
+  ].join(' ');
+}
+
 function refreshToolOptions(){
-  const keys = {
-    a: norm($('aToolSearch')?.value || ''),
-    i: norm($('iToolSearch')?.value || '')
-  };
+  const key = norm($('aToolSearch')?.value || '');
 
   const match = (x, k) => {
     if(!k) return true;
-
-    return norm([
-      x.code,
-      x.name,
-      x.category,
-      x.dept,
-      x.custodian,
-      x.location,
-      x.item_type
-    ].join(' ')).includes(k);
+    return norm(itemSearchText(x)).includes(k);
   };
 
-  fillSelect(
-    'aTool',
-    getAllItems().filter(x => match(x, keys.a)),
-    x => `${x.item_type}|${x.id}`,
-    x => x.label
-  );
+  if($('aTool')){
+    fillSelect(
+      'aTool',
+      getAllItems().filter(x => match(x, key)).slice(0, 200),
+      x => makeItemValue(x),
+      x => x.label
+    );
+  }
+}
 
-  fillSelect(
-    'iTool',
-    getAllItems().filter(x => match(x, keys.i)),
-    x => `${x.item_type}|${x.id}`,
-    x => x.label
-  );
+function getInventorySearchRows(keyword){
+  const q = norm(keyword || '');
+  const tokens = q.split(' ').filter(Boolean);
+
+  if(!tokens.length){
+    return [];
+  }
+
+  return getAllItems()
+    .map(item => {
+      const text = norm(itemSearchText(item));
+      const code = norm(item.code);
+      const name = norm(item.name);
+
+      const matched = tokens.every(t => text.includes(t));
+      if(!matched) return null;
+
+      let score = 0;
+      if(code === q) score += 1000;
+      if(code.startsWith(q)) score += 600;
+      if(name.startsWith(q)) score += 300;
+      if(text.includes(q)) score += 150;
+      score += Math.max(0, 80 - String(item.code || '').length);
+
+      return {item, score};
+    })
+    .filter(Boolean)
+    .sort((a,b) => b.score - a.score || String(a.item.code).localeCompare(String(b.item.code), 'vi'))
+    .slice(0, 40)
+    .map(x => x.item);
+}
+
+function searchInventoryItems(){
+  const input = $('iToolSearch');
+  const box = $('iToolResults');
+  if(!input || !box) return;
+
+  const q = input.value || '';
+  const selectedValue = $('iTool')?.value || '';
+  const selectedItem = selectedValue ? findItemByValue(selectedValue) : null;
+
+  if(selectedItem && q !== `${selectedItem.code} - ${selectedItem.name}`){
+    if($('iTool')) $('iTool').value = '';
+    const selected = $('iToolSelected');
+    if(selected){
+      selected.classList.remove('has-item');
+      selected.textContent = 'Chưa chọn tài sản / CCDC';
+    }
+    if($('iBookQty')) $('iBookQty').value = 0;
+    if($('iActualQty')) $('iActualQty').value = 0;
+  }
+
+  const rows = getInventorySearchRows(q);
+
+  if(!norm(q)){
+    box.classList.add('show');
+    box.innerHTML = '<div class="inv-result-empty">Gõ mã, tên, nhóm hoặc bộ phận để tìm nhanh. Ví dụ: <b>0268</b>, <b>ghế nhân viên</b>, <b>cơ điện</b>.</div>';
+    return;
+  }
+
+  if(!rows.length){
+    box.classList.add('show');
+    box.innerHTML = '<div class="inv-result-empty">Không tìm thấy tài sản / CCDC phù hợp.</div>';
+    return;
+  }
+
+  box.classList.add('show');
+  box.innerHTML = rows.map(item => `
+    <button type="button" class="inv-result-item" onclick="selectInventoryItem('${escHtml(makeItemValue(item))}')">
+      <span class="inv-result-code">${escHtml(item.code)}</span>
+      <span>
+        <span class="inv-result-name">${escHtml(item.name)}</span>
+        <span class="inv-result-meta">${escHtml(itemTypeLabel(item.item_type))} • SL: ${escHtml(item.qty)}</span>
+      </span>
+      <span class="inv-result-meta">${escHtml(item.dept || item.location || 'Chưa gán bộ phận')}</span>
+    </button>
+  `).join('');
+}
+
+function selectInventoryItem(value){
+  const item = findItemByValue(value);
+  if(!item) return;
+
+  if($('iTool')) $('iTool').value = value;
+  if($('iToolSearch')) $('iToolSearch').value = `${item.code} - ${item.name}`;
+
+  const selected = $('iToolSelected');
+  if(selected){
+    selected.classList.add('has-item');
+    selected.innerHTML = `Đã chọn: <b>${escHtml(item.code)}</b> - ${escHtml(item.name)} <span style="color:#64748b">(${escHtml(item.dept || 'Chưa gán bộ phận')})</span>`;
+  }
+
+  const box = $('iToolResults');
+  if(box){
+    box.classList.remove('show');
+    box.innerHTML = '';
+  }
+
+  syncBookQty();
+}
+
+function clearInventoryPick(){
+  if($('iTool')) $('iTool').value = '';
+  if($('iToolSearch')) $('iToolSearch').value = '';
+
+  const selected = $('iToolSelected');
+  if(selected){
+    selected.classList.remove('has-item');
+    selected.textContent = 'Chưa chọn tài sản / CCDC';
+  }
+
+  const box = $('iToolResults');
+  if(box){
+    box.classList.remove('show');
+    box.innerHTML = '';
+  }
+
+  if($('iBookQty')) $('iBookQty').value = 0;
+  if($('iActualQty')) $('iActualQty').value = 0;
+}
+
+function resetInventoryPicker(){
+  clearInventoryPick();
 }
 
 function openAssignModal(){
@@ -1603,10 +1745,13 @@ function openInventoryModal(){
   $('iAction').value = 'Không xử lý';
   $('iNote').value = '';
 
-  refreshToolOptions();
-  syncBookQty();
+  resetInventoryPicker();
 
   $('inventoryModal').classList.add('show');
+
+  setTimeout(() => {
+    if($('iToolSearch')) $('iToolSearch').focus();
+  }, 80);
 }
 
 function syncBookQty(){
@@ -1615,6 +1760,9 @@ function syncBookQty(){
   if(item){
     $('iBookQty').value = item.qty;
     $('iActualQty').value = item.qty;
+  }else{
+    if($('iBookQty')) $('iBookQty').value = 0;
+    if($('iActualQty')) $('iActualQty').value = 0;
   }
 }
 
