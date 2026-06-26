@@ -1142,3 +1142,7 @@ tbody tr:last-child td{
     gap:4px;
   }
 }
+.nav button[data-view="settings"],
+#settings {
+  display: none !important;
+}
