@@ -1152,3 +1152,286 @@ tbody tr:last-child td{
 #settings{
   display:none !important;
 }
+
+
+/* MOBILE OPTIMIZED INVENTORY WORKFLOW */
+.modal-subtitle{
+  margin-top:3px;
+  color:#64748b;
+  font-size:12px;
+  font-weight:600;
+  line-height:1.35;
+}
+
+body.modal-open{
+  overflow:hidden;
+}
+
+.inventory-modal-head{
+  gap:10px;
+}
+
+.inventory-modal-foot .btn{
+  min-height:46px;
+}
+
+@media(max-width:760px){
+  body{
+    font-size:15px;
+  }
+
+  .main{
+    padding:10px;
+  }
+
+  .topbar{
+    gap:10px;
+    margin-bottom:12px;
+  }
+
+  .top-left h2{
+    font-size:21px;
+  }
+
+  .top-left p{
+    font-size:13px;
+    line-height:1.4;
+  }
+
+  .top-actions{
+    gap:8px;
+  }
+
+  .top-actions .btn,
+  .top-actions label.btn{
+    min-height:44px;
+    border-radius:14px;
+    padding:9px 10px;
+    font-size:13px;
+  }
+
+  .kpi{
+    padding:14px;
+  }
+
+  .kpi .value{
+    font-size:28px;
+  }
+
+  .card,
+  .section,
+  .dept,
+  .table-wrap{
+    border-radius:14px;
+  }
+
+  /* kiểm kê: mở như app mobile */
+  #inventoryModal{
+    align-items:stretch;
+    justify-content:stretch;
+    padding:0;
+    background:#f8fafc;
+  }
+
+  #inventoryModal .inventory-modal-box{
+    width:100vw;
+    height:100dvh;
+    max-height:100dvh;
+    border-radius:0;
+    border:0;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+    box-shadow:none;
+  }
+
+  #inventoryModal .inventory-modal-head{
+    position:relative;
+    z-index:5;
+    min-height:58px;
+    padding:12px 14px;
+    flex:0 0 auto;
+    box-shadow:0 8px 22px rgba(15,23,42,.08);
+  }
+
+  #inventoryModal .inventory-modal-head b{
+    font-size:17px;
+  }
+
+  #inventoryModal .inventory-modal-head .btn{
+    min-width:44px;
+    min-height:40px;
+    border-radius:14px;
+    padding:8px 12px;
+  }
+
+  #inventoryModal .inventory-modal-body{
+    flex:1 1 auto;
+    overflow:auto;
+    -webkit-overflow-scrolling:touch;
+    padding:14px 12px 112px;
+    background:#f8fafc;
+  }
+
+  #inventoryModal .inventory-form-grid{
+    grid-template-columns:1fr;
+    gap:10px;
+  }
+
+  #inventoryModal .form-group{
+    background:#fff;
+    border:1px solid #e2e8f0;
+    border-radius:16px;
+    padding:10px;
+    box-shadow:0 8px 20px rgba(15,23,42,.04);
+  }
+
+  #inventoryModal .form-group.full{
+    grid-column:auto;
+  }
+
+  #inventoryModal .form-group label{
+    font-size:11px;
+    margin-bottom:6px;
+    color:#475569;
+  }
+
+  #inventoryModal .form-group input,
+  #inventoryModal .form-group select,
+  #inventoryModal .form-group textarea,
+  #inventoryModal .field{
+    min-height:48px;
+    height:48px;
+    border-radius:14px;
+    font-size:16px;
+    padding:0 12px;
+  }
+
+  #inventoryModal #iNote{
+    height:48px;
+  }
+
+  #inventoryModal .inventory-select-row{
+    flex-direction:column;
+    align-items:stretch;
+    gap:8px;
+  }
+
+  #inventoryModal .inventory-select-row select{
+    width:100%;
+  }
+
+  #inventoryModal .inv-clear-btn{
+    width:100%;
+    min-height:44px;
+    border-radius:14px;
+  }
+
+  #inventoryModal .selected-item-note{
+    font-size:13px;
+    padding:10px;
+  }
+
+  #inventoryModal .inventory-modal-foot{
+    position:fixed;
+    left:0;
+    right:0;
+    bottom:0;
+    z-index:20;
+    display:grid;
+    grid-template-columns:1fr 1.45fr;
+    gap:10px;
+    padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+    background:rgba(255,255,255,.96);
+    backdrop-filter:blur(14px);
+    box-shadow:0 -12px 26px rgba(15,23,42,.13);
+    border-top:1px solid #e2e8f0;
+  }
+
+  #inventoryModal .inventory-modal-foot .btn{
+    width:100%;
+    min-height:50px;
+    border-radius:15px;
+    font-size:15px;
+  }
+
+  /* danh sách kiểm kê trên mobile: đổi bảng thành thẻ */
+  #inventories .table-wrap{
+    max-height:none;
+    overflow:visible;
+    border:0;
+    background:transparent;
+  }
+
+  #inventories table,
+  #inventories thead,
+  #inventories tbody,
+  #inventories tr,
+  #inventories td{
+    display:block;
+    width:100%;
+  }
+
+  #inventories thead{
+    display:none;
+  }
+
+  #inventories tbody tr{
+    margin-bottom:10px;
+    padding:12px;
+    border:1px solid #e2e8f0;
+    border-radius:16px;
+    background:#fff;
+    box-shadow:0 8px 20px rgba(15,23,42,.05);
+  }
+
+  #inventories tbody td{
+    border:0;
+    padding:7px 0;
+    white-space:normal;
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:12px;
+    line-height:1.35;
+  }
+
+  #inventories tbody td::before{
+    content:attr(data-label);
+    flex:0 0 115px;
+    color:#64748b;
+    font-size:12px;
+    font-weight:800;
+    text-transform:uppercase;
+  }
+
+  #inventories tbody td[data-label="Tài sản / CCDC"]{
+    display:block;
+  }
+
+  #inventories tbody td[data-label="Tài sản / CCDC"]::before{
+    display:block;
+    margin-bottom:4px;
+  }
+
+  #inventories tbody td[data-label="Thao tác"]{
+    padding-top:10px;
+  }
+
+  #inventories tbody td[data-label="Thao tác"] .btn{
+    width:100%;
+    min-height:42px;
+    border-radius:14px;
+  }
+}
+
+@media(max-width:420px){
+  #inventoryModal .inventory-modal-body{
+    padding-left:10px;
+    padding-right:10px;
+  }
+
+  #inventoryModal .inventory-modal-foot{
+    grid-template-columns:1fr;
+  }
+}
