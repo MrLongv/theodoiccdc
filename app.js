@@ -82,6 +82,10 @@ let lastToolRows = [];
 
 let confirmResolve = null;
 let inventorySaving = false;
+let inventoryAllItemsCache = null;
+let inventoryDeptItemsCache = new Map();
+let inventoryDoneCacheYear = '';
+let inventoryDoneKeySet = null;
 
 const $ = id => document.getElementById(id);
 
@@ -934,6 +938,8 @@ async function loadRemote(){
 
     applyMasterData(remoteCategories, remoteDepartments);
     syncDerivedCategoriesFromCurrentData();
+    invalidateInventoryItemCache();
+    invalidateInventoryDoneCache();
 
   }catch(e){
     loadLocal();
@@ -951,6 +957,8 @@ function loadLocal(){
   const localDepts = JSON.parse(localStorage.getItem('CCDC_MASTER_DEPARTMENTS') || '[]');
   applyMasterData(localCats.length ? localCats : null, localDepts.length ? localDepts : null);
   syncDerivedCategoriesFromCurrentData();
+  invalidateInventoryItemCache();
+  invalidateInventoryDoneCache();
 }
 
 function saveLocal(){
@@ -1466,6 +1474,115 @@ function closeModal(id){
   }
 }
 
+
+function invalidateInventoryItemCache(){
+  inventoryAllItemsCache = null;
+  inventoryDeptItemsCache = new Map();
+}
+
+function invalidateInventoryDoneCache(){
+  inventoryDoneCacheYear = '';
+  inventoryDoneKeySet = null;
+}
+
+function getInventoryAllItemsFast(){
+  if(!inventoryAllItemsCache){
+    inventoryAllItemsCache = getAllItems().sort((a,b) =>
+      String(a.dept || '').localeCompare(String(b.dept || ''), 'vi') ||
+      String(a.code || '').localeCompare(String(b.code || ''), 'vi') ||
+      String(a.name || '').localeCompare(String(b.name || ''), 'vi')
+    );
+  }
+
+  return inventoryAllItemsCache;
+}
+
+function inventoryKeyForItem(item){
+  return `${item.item_type}|${item.id}`;
+}
+
+function inventoryCodeKeyForItem(item){
+  return `${item.item_type}|code:${norm(item.code)}`;
+}
+
+function getInventoryDoneKeySet(){
+  const year = currentInventoryYear();
+
+  if(inventoryDoneKeySet && inventoryDoneCacheYear === year){
+    return inventoryDoneKeySet;
+  }
+
+  const set = new Set();
+
+  inventories.forEach(inv => {
+    if(String(inv.inventory_year || '') !== year) return;
+
+    const type = inv.item_type || (inv.tool_id ? 'tool' : '');
+    const id = inv.item_id ?? inv.tool_id ?? null;
+    const code = inv.item_code || inv.tool_code || '';
+
+    if(type && id !== null && id !== undefined && String(id) !== ''){
+      set.add(`${type}|${id}`);
+    }
+
+    if(type && code){
+      set.add(`${type}|code:${norm(code)}`);
+    }
+
+    if(code){
+      set.add(`code:${norm(code)}`);
+    }
+  });
+
+  inventoryDoneCacheYear = year;
+  inventoryDoneKeySet = set;
+  return set;
+}
+
+function renderInventoryOnlyFast(){
+  invalidateInventoryDoneCache();
+  refreshInventoryItemSelect();
+  renderInventories();
+  renderKpi();
+  renderWarnings();
+}
+
+async function saveRemoteData(path, payload, method){
+  if(!CURRENT_API_BASE){
+    return {success:true, id: Date.now()};
+  }
+
+  try{
+    const res = await fetch(CURRENT_API_BASE + path, {
+      method,
+      headers:{
+        'Content-Type':'application/json',
+        Authorization:'Bearer ' + CCDC_TOKEN
+      },
+      body: payload ? JSON.stringify(payload) : undefined
+    });
+
+    const text = await res.text();
+    let data = {};
+
+    try{
+      data = text ? JSON.parse(text) : {};
+    }catch{
+      data = {success:false, error:text || 'API không trả về JSON'};
+    }
+
+    if(!res.ok || data.success === false){
+      showToast(data.error || `HTTP ${res.status}`, 'error', 'Không kết nối được API');
+      return false;
+    }
+
+    return data || {success:true};
+  }catch(e){
+    showToast(e.message || 'Không gọi được API', 'error', 'Không kết nối được API');
+    return false;
+  }
+}
+
 /* =======================
    ASSIGNMENTS / INVENTORY
 ======================= */
@@ -1559,24 +1676,31 @@ function inventoryMatchesItem(inv, item){
 }
 
 function isItemInventoriedForCurrentYear(item){
-  const year = currentInventoryYear();
+  const done = getInventoryDoneKeySet();
 
-  return inventories.some(inv =>
-    String(inv.inventory_year || '') === year &&
-    inventoryMatchesItem(inv, item)
-  );
+  return done.has(inventoryKeyForItem(item)) ||
+    done.has(inventoryCodeKeyForItem(item)) ||
+    done.has(`code:${norm(item.code)}`);
 }
 
 function getInventoryDeptItems(){
   const dept = $('iDeptFilter')?.value || '';
   if(!dept) return [];
 
-  return getAllItems()
-    .filter(item => norm(item.dept) === norm(dept))
+  const key = norm(dept);
+  if(inventoryDeptItemsCache.has(key)){
+    return inventoryDeptItemsCache.get(key);
+  }
+
+  const rows = getInventoryAllItemsFast()
+    .filter(item => norm(item.dept) === key)
     .sort((a,b) =>
       String(a.code || '').localeCompare(String(b.code || ''), 'vi') ||
       String(a.name || '').localeCompare(String(b.name || ''), 'vi')
     );
+
+  inventoryDeptItemsCache.set(key, rows);
+  return rows;
 }
 
 function getInventoryFilteredItems(){
@@ -1904,22 +2028,47 @@ async function saveInventory(){
   }
 
   inventorySaving = true;
+  const saveBtn = document.querySelector('.inventory-modal-foot .btn.primary');
+  const oldBtnText = saveBtn ? saveBtn.textContent : '';
 
-  const ok = await saveRemote(
+  if(saveBtn){
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Đang lưu...';
+  }
+
+  const data = await saveRemoteData(
     editingInventoryId ? '/api/inventories/' + editingInventoryId : '/api/inventories',
     p,
-    editingInventoryId ? 'PUT' : 'POST',
-    false
+    editingInventoryId ? 'PUT' : 'POST'
   );
 
   inventorySaving = false;
 
-  if(!ok) return;
+  if(saveBtn){
+    saveBtn.disabled = false;
+    saveBtn.textContent = oldBtnText || 'Lưu kiểm kê';
+  }
+
+  if(!data) return;
+
+  const savedRow = {
+    id: editingInventoryId || data.id || Date.now(),
+    ...p
+  };
+
+  if(editingInventoryId){
+    inventories = inventories.map(x => String(x.id) === String(editingInventoryId) ? {...x, ...savedRow} : x);
+  }else{
+    inventories = [savedRow, ...inventories];
+  }
 
   editingInventoryId = null;
 
-  await loadRemote();
-  renderAll();
+  if(!CURRENT_API_BASE){
+    saveLocal();
+  }
+
+  renderInventoryOnlyFast();
   prepareNextInventoryEntry();
 
   showToast('Đã lưu kiểm kê. Món vừa kiểm kê đã được bỏ khỏi danh sách còn lại.', 'success', 'Thành công');
@@ -1959,8 +2108,13 @@ async function deleteInventory(id){
   const ok = await saveRemote('/api/inventories/' + id, null, 'DELETE', false);
   if(!ok) return;
 
-  await loadRemote();
-  renderAll();
+  inventories = inventories.filter(x => String(x.id) !== String(id));
+  if(!CURRENT_API_BASE){
+    saveLocal();
+  }
+
+  renderInventoryOnlyFast();
+  showToast('Đã xóa dòng kiểm kê', 'success', 'Kiểm kê');
 }
 
 
