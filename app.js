@@ -81,6 +81,7 @@ let toolPageSize = 25;
 let lastToolRows = [];
 
 let confirmResolve = null;
+let inventorySaving = false;
 
 const $ = id => document.getElementById(id);
 
@@ -1535,26 +1536,79 @@ function getInventorySearchRows(keyword){
     .map(x => x.item);
 }
 
-function getInventoryFilteredItems(){
-  const dept = $('iDeptFilter')?.value || '';
-  const q = norm($('iToolSearch')?.value || '');
-  const tokens = q.split(' ').filter(Boolean);
+function currentInventoryYear(){
+  return String($('iYear')?.value || new Date().getFullYear());
+}
 
-  if(!dept){
-    return [];
+function inventoryMatchesItem(inv, item){
+  if(!inv || !item) return false;
+
+  const invType = inv.item_type || (inv.tool_id ? 'tool' : '');
+  const invId = inv.item_id ?? inv.tool_id ?? null;
+  const invCode = inv.item_code || inv.tool_code || '';
+
+  if(invType && invType === item.item_type && invId !== null && String(invId) === String(item.id)){
+    return true;
   }
+
+  if(invType && invType !== item.item_type){
+    return false;
+  }
+
+  return invCode && norm(invCode) === norm(item.code);
+}
+
+function isItemInventoriedForCurrentYear(item){
+  const year = currentInventoryYear();
+
+  return inventories.some(inv =>
+    String(inv.inventory_year || '') === year &&
+    inventoryMatchesItem(inv, item)
+  );
+}
+
+function getInventoryDeptItems(){
+  const dept = $('iDeptFilter')?.value || '';
+  if(!dept) return [];
 
   return getAllItems()
     .filter(item => norm(item.dept) === norm(dept))
-    .filter(item => {
-      if(!tokens.length) return true;
-      const text = norm(itemSearchText(item));
-      return tokens.every(t => text.includes(t));
-    })
     .sort((a,b) =>
       String(a.code || '').localeCompare(String(b.code || ''), 'vi') ||
       String(a.name || '').localeCompare(String(b.name || ''), 'vi')
     );
+}
+
+function getInventoryFilteredItems(){
+  const q = norm($('iToolSearch')?.value || '');
+  const tokens = q.split(' ').filter(Boolean);
+
+  return getInventoryDeptItems()
+    .filter(item => !isItemInventoriedForCurrentYear(item))
+    .filter(item => {
+      if(!tokens.length) return true;
+      const text = norm(itemSearchText(item));
+      return tokens.every(t => text.includes(t));
+    });
+}
+
+function getInventoryProgressText(){
+  const dept = $('iDeptFilter')?.value || '';
+  if(!dept) return 'Chưa chọn tài sản / CCDC';
+
+  const all = getInventoryDeptItems();
+  const done = all.filter(isItemInventoriedForCurrentYear).length;
+  const remain = Math.max(0, all.length - done);
+
+  if(!all.length){
+    return 'Không có tài sản / CCDC trong bộ phận này';
+  }
+
+  if(remain === 0){
+    return `Đã kiểm kê hết ${done}/${all.length} món trong phòng này - năm ${currentInventoryYear()}`;
+  }
+
+  return `Còn ${remain}/${all.length} món chưa kiểm kê trong phòng này - năm ${currentInventoryYear()}`;
 }
 
 function updateInventorySelectedNote(){
@@ -1564,12 +1618,18 @@ function updateInventorySelectedNote(){
   const item = findItemByValue($('iTool')?.value || '');
 
   if(!item){
+    const dept = $('iDeptFilter')?.value || '';
+    const all = getInventoryDeptItems();
+    const remain = all.filter(x => !isItemInventoriedForCurrentYear(x)).length;
+
     selected.classList.remove('has-item');
-    selected.textContent = 'Chưa chọn tài sản / CCDC';
+    selected.classList.toggle('all-done', !!dept && all.length > 0 && remain === 0);
+    selected.textContent = getInventoryProgressText();
     return;
   }
 
   selected.classList.add('has-item');
+  selected.classList.remove('all-done');
   selected.innerHTML = `Đã chọn: <b>${escHtml(item.code)}</b> - ${escHtml(item.name)} <span style="color:#64748b">(${escHtml(item.dept || 'Chưa gán bộ phận')})</span>`;
 }
 
@@ -1581,9 +1641,11 @@ function refreshInventoryItemSelect(){
   const dept = $('iDeptFilter')?.value || '';
   const rows = getInventoryFilteredItems();
   const selectedNote = $('iToolSelected');
+
   if(selectedNote && !select.value){
-    selectedNote.textContent = dept ? `Đã lọc ${rows.length} tài sản / CCDC trong phòng này` : 'Chưa chọn tài sản / CCDC';
+    selectedNote.textContent = getInventoryProgressText();
     selectedNote.classList.remove('has-item');
+    selectedNote.classList.toggle('all-done', !!dept && getInventoryDeptItems().length > 0 && rows.length === 0);
   }
 
   select.innerHTML = '';
@@ -1591,7 +1653,7 @@ function refreshInventoryItemSelect(){
   const first = document.createElement('option');
   first.value = '';
   first.textContent = dept
-    ? (rows.length ? 'Chọn tài sản / CCDC cần kiểm kê' : 'Không có tài sản / CCDC trong bộ phận này')
+    ? (rows.length ? `Chọn tài sản / CCDC còn lại (${rows.length})` : 'Đã kiểm kê hết trong phòng này')
     : 'Chọn phòng / bộ phận trước';
   select.appendChild(first);
 
@@ -1825,6 +1887,8 @@ function inventoryPayload(){
 }
 
 async function saveInventory(){
+  if(inventorySaving) return;
+
   const p = inventoryPayload();
 
   if(!p.item_id){
@@ -1832,12 +1896,23 @@ async function saveInventory(){
     return;
   }
 
+  const item = findItemByValue($('iTool')?.value || '');
+  if(item && isItemInventoriedForCurrentYear(item) && !editingInventoryId){
+    showToast('Món này đã được kiểm kê trong năm đã chọn, danh sách sẽ tự bỏ qua món này.', 'warn', 'Đã kiểm kê');
+    prepareNextInventoryEntry();
+    return;
+  }
+
+  inventorySaving = true;
+
   const ok = await saveRemote(
     editingInventoryId ? '/api/inventories/' + editingInventoryId : '/api/inventories',
     p,
     editingInventoryId ? 'PUT' : 'POST',
     false
   );
+
+  inventorySaving = false;
 
   if(!ok) return;
 
@@ -1847,7 +1922,7 @@ async function saveInventory(){
   renderAll();
   prepareNextInventoryEntry();
 
-  showToast('Đã lưu kiểm kê. Có thể chọn món tiếp theo trong cùng phòng.', 'success', 'Thành công');
+  showToast('Đã lưu kiểm kê. Món vừa kiểm kê đã được bỏ khỏi danh sách còn lại.', 'success', 'Thành công');
 }
 
 function renderInventories(){
