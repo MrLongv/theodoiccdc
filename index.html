@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Quản lý Tài sản + Công cụ dụng cụ Kế toán - Việt Hồng</title>
-  <link rel="stylesheet" href="style.css?v=mobile1">
+  <link rel="stylesheet" href="style.css?v=mobile2">
 </head>
 <body>
   <div id="loginScreen" class="login-screen">
@@ -417,7 +417,7 @@
   <div class="modal" id="inventoryModal"><div class="modal-box inventory-modal-box">
     <div class="modal-head inventory-modal-head"><div><b>Ghi nhận kiểm kê</b><div class="modal-subtitle">Chọn phòng, chọn tài sản/CCDC rồi lưu liên tục.</div></div><button class="btn ghost" onclick="closeModal('inventoryModal')">✕</button></div>
     <div class="modal-body inventory-modal-body"><div class="form-grid inventory-form-grid">
-      <div class="form-group inv-small-field"><label>Năm kiểm kê</label><select id="iYear"></select></div>
+      <div class="form-group inv-small-field"><label>Năm kiểm kê</label><select id="iYear" onchange="refreshInventoryItemSelect()"></select></div>
       <div class="form-group inv-small-field"><label>Ngày kiểm kê</label><input id="iDate" type="date"></div>
       <div class="form-group">
         <label>Chọn phòng / bộ phận</label>
@@ -450,6 +450,6 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="config.js"></script>
-  <script src="app.js?v=mobile1"></script>
+  <script src="app.js?v=mobile2"></script>
 </body>
 </html>
