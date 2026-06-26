@@ -1458,6 +1458,7 @@ async function deleteTool(id){
 
 function closeModal(id){
   $(id).classList.remove('show');
+  document.body.classList.remove('modal-open');
 
   if(id === 'inventoryModal'){
     clearInventoryPick();
@@ -1579,6 +1580,11 @@ function refreshInventoryItemSelect(){
   const old = select.value;
   const dept = $('iDeptFilter')?.value || '';
   const rows = getInventoryFilteredItems();
+  const selectedNote = $('iToolSelected');
+  if(selectedNote && !select.value){
+    selectedNote.textContent = dept ? `Đã lọc ${rows.length} tài sản / CCDC trong phòng này` : 'Chưa chọn tài sản / CCDC';
+    selectedNote.classList.remove('has-item');
+  }
 
   select.innerHTML = '';
 
@@ -1628,6 +1634,14 @@ function resetInventoryPicker(){
   if($('iDeptFilter')) $('iDeptFilter').value = '';
   if($('iToolSearch')) $('iToolSearch').value = '';
   refreshInventoryItemSelect();
+}
+
+function focusInventorySearchOnMobile(){
+  if(window.innerWidth <= 760){
+    setTimeout(() => {
+      if($('iToolSearch')) $('iToolSearch').focus();
+    }, 80);
+  }
 }
 
 function prepareNextInventoryEntry(){
@@ -1766,6 +1780,7 @@ function openInventoryModal(){
   resetInventoryPicker();
 
   $('inventoryModal').classList.add('show');
+  document.body.classList.add('modal-open');
 
   setTimeout(() => {
     if($('iDeptFilter')) $('iDeptFilter').focus();
@@ -1843,20 +1858,20 @@ function renderInventories(){
 
     return `
       <tr>
-        <td>${i.inventory_year || ''}</td>
-        <td>${i.inventory_date || ''}</td>
-        <td>
+        <td data-label="Năm">${i.inventory_year || ''}</td>
+        <td data-label="Ngày kiểm kê">${i.inventory_date || ''}</td>
+        <td data-label="Tài sản / CCDC">
           <b>${code}</b>
           <div style="font-size:12px;color:var(--muted)">
             ${itemTypeLabel(type)}${name ? ' - ' + name : ''}
           </div>
         </td>
-        <td>${i.book_qty || 0}</td>
-        <td>${i.actual_qty || 0}</td>
-        <td><b>${i.difference_qty || 0}</b></td>
-        <td>${i.condition || ''}</td>
-        <td>${i.action || ''}</td>
-        <td><button class="btn danger" onclick="deleteInventory(${i.id})">Xóa</button></td>
+        <td data-label="SL sổ sách">${i.book_qty || 0}</td>
+        <td data-label="SL thực tế">${i.actual_qty || 0}</td>
+        <td data-label="Chênh lệch"><b>${i.difference_qty || 0}</b></td>
+        <td data-label="Tình trạng">${i.condition || ''}</td>
+        <td data-label="Kiến nghị">${i.action || ''}</td>
+        <td data-label="Thao tác"><button class="btn danger" onclick="deleteInventory(${i.id})">Xóa</button></td>
       </tr>
     `;
   }).join('') || '<tr><td colspan="9">Chưa có dữ liệu kiểm kê</td></tr>';
