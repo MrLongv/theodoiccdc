@@ -315,9 +315,11 @@ function refreshMasterSelects(){
   fillSelectKeepValue('faDept', departments, d=>d.name, d=>d.name);
   fillSelectKeepValue('fDept', departments, d=>d.name, d=>d.name);
   fillSelectKeepValue('aDept', departments, d=>d.name, d=>d.name);
+  fillSelectKeepValue('iDeptFilter', departments, d=>d.name, d=>d.name, 'Chọn phòng / bộ phận');
 
   refreshListFilters();
   refreshToolOptions();
+  refreshInventoryItemSelect();
 }
 
 function clearListFilters(){
@@ -1458,11 +1460,7 @@ function closeModal(id){
   $(id).classList.remove('show');
 
   if(id === 'inventoryModal'){
-    const box = $('iToolResults');
-    if(box){
-      box.classList.remove('show');
-      box.innerHTML = '';
-    }
+    clearInventoryPick();
   }
 }
 
@@ -1536,97 +1534,117 @@ function getInventorySearchRows(keyword){
     .map(x => x.item);
 }
 
+function getInventoryFilteredItems(){
+  const dept = $('iDeptFilter')?.value || '';
+  const q = norm($('iToolSearch')?.value || '');
+  const tokens = q.split(' ').filter(Boolean);
+
+  if(!dept){
+    return [];
+  }
+
+  return getAllItems()
+    .filter(item => norm(item.dept) === norm(dept))
+    .filter(item => {
+      if(!tokens.length) return true;
+      const text = norm(itemSearchText(item));
+      return tokens.every(t => text.includes(t));
+    })
+    .sort((a,b) =>
+      String(a.code || '').localeCompare(String(b.code || ''), 'vi') ||
+      String(a.name || '').localeCompare(String(b.name || ''), 'vi')
+    );
+}
+
+function updateInventorySelectedNote(){
+  const selected = $('iToolSelected');
+  if(!selected) return;
+
+  const item = findItemByValue($('iTool')?.value || '');
+
+  if(!item){
+    selected.classList.remove('has-item');
+    selected.textContent = 'Chưa chọn tài sản / CCDC';
+    return;
+  }
+
+  selected.classList.add('has-item');
+  selected.innerHTML = `Đã chọn: <b>${escHtml(item.code)}</b> - ${escHtml(item.name)} <span style="color:#64748b">(${escHtml(item.dept || 'Chưa gán bộ phận')})</span>`;
+}
+
+function refreshInventoryItemSelect(){
+  const select = $('iTool');
+  if(!select) return;
+
+  const old = select.value;
+  const dept = $('iDeptFilter')?.value || '';
+  const rows = getInventoryFilteredItems();
+
+  select.innerHTML = '';
+
+  const first = document.createElement('option');
+  first.value = '';
+  first.textContent = dept
+    ? (rows.length ? 'Chọn tài sản / CCDC cần kiểm kê' : 'Không có tài sản / CCDC trong bộ phận này')
+    : 'Chọn phòng / bộ phận trước';
+  select.appendChild(first);
+
+  rows.forEach(item => {
+    const op = document.createElement('option');
+    op.value = makeItemValue(item);
+    op.textContent = `${itemTypeLabel(item.item_type)} | ${item.code} - ${item.name} | SL: ${item.qty}${item.location ? ' | ' + item.location : ''}`;
+    select.appendChild(op);
+  });
+
+  const values = [...select.options].map(op => op.value);
+  select.value = values.includes(old) ? old : '';
+
+  syncBookQty();
+  updateInventorySelectedNote();
+}
+
 function searchInventoryItems(){
-  const input = $('iToolSearch');
-  const box = $('iToolResults');
-  if(!input || !box) return;
-
-  const q = input.value || '';
-  const selectedValue = $('iTool')?.value || '';
-  const selectedItem = selectedValue ? findItemByValue(selectedValue) : null;
-
-  if(selectedItem && q !== `${selectedItem.code} - ${selectedItem.name}`){
-    if($('iTool')) $('iTool').value = '';
-    const selected = $('iToolSelected');
-    if(selected){
-      selected.classList.remove('has-item');
-      selected.textContent = 'Chưa chọn tài sản / CCDC';
-    }
-    if($('iBookQty')) $('iBookQty').value = 0;
-    if($('iActualQty')) $('iActualQty').value = 0;
-  }
-
-  const rows = getInventorySearchRows(q);
-
-  if(!norm(q)){
-    box.classList.add('show');
-    box.innerHTML = '<div class="inv-result-empty">Gõ mã, tên, nhóm hoặc bộ phận để tìm nhanh. Ví dụ: <b>0268</b>, <b>ghế nhân viên</b>, <b>cơ điện</b>.</div>';
-    return;
-  }
-
-  if(!rows.length){
-    box.classList.add('show');
-    box.innerHTML = '<div class="inv-result-empty">Không tìm thấy tài sản / CCDC phù hợp.</div>';
-    return;
-  }
-
-  box.classList.add('show');
-  box.innerHTML = rows.map(item => `
-    <button type="button" class="inv-result-item" onclick="selectInventoryItem('${escHtml(makeItemValue(item))}')">
-      <span class="inv-result-code">${escHtml(item.code)}</span>
-      <span>
-        <span class="inv-result-name">${escHtml(item.name)}</span>
-        <span class="inv-result-meta">${escHtml(itemTypeLabel(item.item_type))} • SL: ${escHtml(item.qty)}</span>
-      </span>
-      <span class="inv-result-meta">${escHtml(item.dept || item.location || 'Chưa gán bộ phận')}</span>
-    </button>
-  `).join('');
+  refreshInventoryItemSelect();
 }
 
 function selectInventoryItem(value){
-  const item = findItemByValue(value);
-  if(!item) return;
-
-  if($('iTool')) $('iTool').value = value;
-  if($('iToolSearch')) $('iToolSearch').value = `${item.code} - ${item.name}`;
-
-  const selected = $('iToolSelected');
-  if(selected){
-    selected.classList.add('has-item');
-    selected.innerHTML = `Đã chọn: <b>${escHtml(item.code)}</b> - ${escHtml(item.name)} <span style="color:#64748b">(${escHtml(item.dept || 'Chưa gán bộ phận')})</span>`;
-  }
-
-  const box = $('iToolResults');
-  if(box){
-    box.classList.remove('show');
-    box.innerHTML = '';
-  }
-
+  if($('iTool')) $('iTool').value = value || '';
   syncBookQty();
+  updateInventorySelectedNote();
 }
 
-function clearInventoryPick(){
-  if($('iTool')) $('iTool').value = '';
+function clearInventoryPick(clearDept=false){
+  if(clearDept && $('iDeptFilter')) $('iDeptFilter').value = '';
   if($('iToolSearch')) $('iToolSearch').value = '';
-
-  const selected = $('iToolSelected');
-  if(selected){
-    selected.classList.remove('has-item');
-    selected.textContent = 'Chưa chọn tài sản / CCDC';
-  }
-
-  const box = $('iToolResults');
-  if(box){
-    box.classList.remove('show');
-    box.innerHTML = '';
-  }
-
+  if($('iTool')) $('iTool').value = '';
   if($('iBookQty')) $('iBookQty').value = 0;
   if($('iActualQty')) $('iActualQty').value = 0;
+
+  updateInventorySelectedNote();
+  refreshInventoryItemSelect();
 }
 
 function resetInventoryPicker(){
-  clearInventoryPick();
+  if($('iDeptFilter')) $('iDeptFilter').value = '';
+  if($('iToolSearch')) $('iToolSearch').value = '';
+  refreshInventoryItemSelect();
+}
+
+function prepareNextInventoryEntry(){
+  if($('iToolSearch')) $('iToolSearch').value = '';
+  if($('iTool')) $('iTool').value = '';
+  if($('iBookQty')) $('iBookQty').value = 0;
+  if($('iActualQty')) $('iActualQty').value = 0;
+  if($('iCondition')) $('iCondition').value = 'Tốt';
+  if($('iAction')) $('iAction').value = 'Không xử lý';
+  if($('iNote')) $('iNote').value = '';
+
+  refreshInventoryItemSelect();
+  updateInventorySelectedNote();
+
+  setTimeout(() => {
+    if($('iToolSearch')) $('iToolSearch').focus();
+  }, 80);
 }
 
 function openAssignModal(){
@@ -1750,7 +1768,7 @@ function openInventoryModal(){
   $('inventoryModal').classList.add('show');
 
   setTimeout(() => {
-    if($('iToolSearch')) $('iToolSearch').focus();
+    if($('iDeptFilter')) $('iDeptFilter').focus();
   }, 80);
 }
 
@@ -1808,13 +1826,13 @@ async function saveInventory(){
 
   if(!ok) return;
 
-  closeModal('inventoryModal');
   editingInventoryId = null;
 
   await loadRemote();
   renderAll();
+  prepareNextInventoryEntry();
 
-  showToast('Đã lưu kiểm kê', 'success', 'Thành công');
+  showToast('Đã lưu kiểm kê. Có thể chọn món tiếp theo trong cùng phòng.', 'success', 'Thành công');
 }
 
 function renderInventories(){
