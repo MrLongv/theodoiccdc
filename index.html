@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Quản lý Tài sản + Công cụ dụng cụ Kế toán - Việt Hồng</title>
-  <link rel="stylesheet" href="style.css?v=invdept1">
+  <link rel="stylesheet" href="style.css?v=mobile1">
 </head>
 <body>
   <div id="loginScreen" class="login-screen">
@@ -414,18 +414,18 @@
     <div class="modal-foot"><button class="btn ghost" onclick="closeModal('assignModal')">Hủy</button><button class="btn primary" onclick="saveAssignment()">Lưu phiếu</button></div>
   </div></div>
 
-  <div class="modal" id="inventoryModal"><div class="modal-box">
-    <div class="modal-head"><b>Ghi nhận kiểm kê tài sản / CCDC</b><button class="btn ghost" onclick="closeModal('inventoryModal')">✕</button></div>
-    <div class="modal-body"><div class="form-grid">
-      <div class="form-group"><label>Năm kiểm kê</label><select id="iYear"></select></div>
-      <div class="form-group"><label>Ngày kiểm kê</label><input id="iDate" type="date"></div>
+  <div class="modal" id="inventoryModal"><div class="modal-box inventory-modal-box">
+    <div class="modal-head inventory-modal-head"><div><b>Ghi nhận kiểm kê</b><div class="modal-subtitle">Chọn phòng, chọn tài sản/CCDC rồi lưu liên tục.</div></div><button class="btn ghost" onclick="closeModal('inventoryModal')">✕</button></div>
+    <div class="modal-body inventory-modal-body"><div class="form-grid inventory-form-grid">
+      <div class="form-group inv-small-field"><label>Năm kiểm kê</label><select id="iYear"></select></div>
+      <div class="form-group inv-small-field"><label>Ngày kiểm kê</label><input id="iDate" type="date"></div>
       <div class="form-group">
         <label>Chọn phòng / bộ phận</label>
-        <select id="iDeptFilter" onchange="refreshInventoryItemSelect()"></select>
+        <select id="iDeptFilter" onchange="refreshInventoryItemSelect();focusInventorySearchOnMobile()"></select>
       </div>
       <div class="form-group">
         <label>Tìm nhanh trong phòng</label>
-        <input id="iToolSearch" class="field" placeholder="Gõ mã, tên... VD: 0268 hoặc ghế nhân viên" oninput="searchInventoryItems()">
+        <input id="iToolSearch" class="field" placeholder="Gõ mã hoặc tên trong phòng đã chọn" oninput="searchInventoryItems()">
       </div>
       <div class="form-group full inv-picker">
         <label>Tài sản / CCDC trong phòng đã chọn</label>
@@ -441,7 +441,7 @@
       <div class="form-group"><label>Kiến nghị xử lý</label><select id="iAction"><option>Không xử lý</option><option>Tiếp tục sử dụng</option><option>Sửa chữa</option><option>Bồi thường</option><option>Thanh lý</option><option>Điều chỉnh sổ sách</option></select></div>
       <div class="form-group full"><label>Ghi chú</label><input id="iNote"></div>
     </div></div>
-    <div class="modal-foot"><button class="btn ghost" onclick="closeModal('inventoryModal')">Đóng</button><button class="btn primary" onclick="saveInventory()">Lưu kiểm kê</button></div>
+    <div class="modal-foot inventory-modal-foot"><button class="btn ghost" onclick="closeModal('inventoryModal')">Đóng</button><button class="btn primary" onclick="saveInventory()">Lưu kiểm kê</button></div>
   </div></div>
 
   <div id="toastBox" class="toast-box"></div>
@@ -450,6 +450,6 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="config.js"></script>
-  <script src="app.js?v=invdept1"></script>
+  <script src="app.js?v=mobile1"></script>
 </body>
 </html>
