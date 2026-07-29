@@ -2502,13 +2502,35 @@ function exportExcel(){
     sheet(
       'DANH SÁCH CÔNG CỤ DỤNG CỤ',
       ['STT','Mã CCDC','Nhóm','Tên CCDC','Quy cách','Serial','ĐVT','SL','Ngày mua','Nguyên giá','Giá trị còn lại','Bộ phận','Người quản lý','Vị trí','Trạng thái','Ghi chú'],
-      tools.map((a,i) => [
-        i + 1, toolCode(a), toolCategory(a), toolName(a),
-        a.specification || '', a.serial_number || '', a.unit || '',
-        toolQty(a), a.purchase_date || '', toolCost(a),
-        a.remaining_value || 0, toolDept(a), a.custodian || '',
-        a.location || '', statusLabel(a.status), a.note || ''
-      ])
+      [...tools]
+  .sort((a, b) =>
+    toolCode(a).localeCompare(
+      toolCode(b),
+      'vi',
+      {
+        numeric: true,
+        sensitivity: 'base'
+      }
+    )
+  )
+  .map((a, i) => [
+    i + 1,
+    toolCode(a),
+    toolCategory(a),
+    toolName(a),
+    a.specification || '',
+    a.serial_number || '',
+    a.unit || '',
+    toolQty(a),
+    a.purchase_date || '',
+    toolCost(a),
+    a.remaining_value || 0,
+    toolDept(a),
+    a.custodian || '',
+    a.location || '',
+    statusLabel(a.status),
+    a.note || ''
+  ])
     ),
     'CCDC'
   );
